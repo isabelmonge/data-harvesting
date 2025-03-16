@@ -78,6 +78,141 @@ Check your internet connection and make sure the target website hasn't changed i
 - Visualizes combined data from both sources
 - Provides filtering and analysis tools
 
+
+
+
+# API
+
+This project collects financial data from the Alpha Vantage API for S&P 500 companies using three different approaches to overcome API rate limits.
+
+## Overview
+
+This project combines multiple data collection strategies into a comprehensive financial data tool:
+
+1. **API Data Collection**: Uses three different approaches to efficiently gather data from Alpha Vantage API
+
+## Prerequisites
+
+- **R/RStudio**: Version 4.0.0 or higher with required packages
+- **Tor Browser**: For IP rotation approach - [Download here](https://www.torproject.org/download/)
+- **Python 3.6+**: With the `requests` package installed
+
+## API Data Collection Approaches
+
+We've implemented three different approaches to efficiently collect data while respecting API limitations:
+
+### 1. Auto Tor IP Rotation Approach
+
+#### Overview
+The Auto Tor IP Rotation approach uses the Tor network to rotate IP addresses, allowing us to make multiple API requests without hitting rate limits. This method is resolves the issue that Alpha Vantage has a hard limit of 25 requests per day and per IP address/
+
+#### Installation
+
+##### For macOS Users
+1. Clone this repository
+2. Navigate to the repository folder
+3. Run the installation script:
+   ```bash
+   chmod +x autotor/install_autotor_mac.sh
+   ./autotor/install_autotor_mac.sh
+   ```
+4. The script will install all necessary components
+
+##### For Linux Users
+1. Clone this repository
+2. Navigate to the repository folder
+3. Run the installation script:
+   ```bash
+   chmod +x autotor/install_autotor_linux.sh
+   ./autotor/install_autotor_linux.sh
+   ```
+4. Again, the script will install all necessary components
+
+#### Usage
+1. Start the Auto Tor IP Changer:
+   ```bash
+   aut
+   ```
+2. When prompted:
+   - Set the interval to 75 seconds
+   - Press enter in order to choose "infinite" for the number of changes
+3. Open another terminal window and run the R script:
+   ```bash
+   Rscript API_key_rotation_Tor_2.R
+   ```
+
+#### How It Works
+1. **IP Rotation**: The Auto Tor IP Changer restarts the Tor Browser at regular intervals, providing the user with a new IP address each time
+2. **Proxy Configuration**: The R script connects through the Tor SOCKS proxy (127.0.0.1:9150)
+3. **API Requests**: With constantly rotating IPs, you can make more API requests without triggering rate limits
+
+#### Troubleshooting
+- **Tor Browser not starting**: Make sure Tor Browser is properly installed
+- **Connection errors**: Verify that Tor is running properly and the SOCKS proxy is accessible
+- **Slow response times**: This is normal when using Tor; consider adjusting request intervals
+
+### 2. API Key Rotation Approach
+
+#### Overview
+This approach cycles through multiple Alpha Vantage API keys to maximize the number of requests within a given timeframe.
+
+#### Setup
+1. Create a `.env` file in the root directory with your Alpha Vantage API keys:
+   ```
+   ALPHA_VANTAGE_KEY_1=YOUR_KEY_1
+   ALPHA_VANTAGE_KEY_2=YOUR_KEY_2
+   # Add more keys as needed
+   ```
+
+2. Install required R packages:
+   ```r
+   install.packages(c("httr", "jsonlite", "dotenv", "rvest"))
+   ```
+
+#### Usage
+Run the API key rotation script:
+```bash
+Rscript API_key_rotation_manual.R
+```
+
+#### How It Works
+1. The script loads multiple API keys from the `.env` file
+2. Requests are distributed across these keys to stay within rate limits
+3. Data is collected in batches, with progress saved after each batch
+
+### 3. Manual Collection with Scheduling
+
+#### Overview
+This approach strategically schedules API requests over time to collect data while respecting API limits.
+
+#### Usage
+```bash
+Rscript fallback_alpha_vantage.R
+```
+
+#### Configuration Parameters
+You can customize the data collection process by modifying these parameters in the R script:
+- `batch_size`: Number of companies to collect in each batch (default: 50)
+- `interval_seconds`: Time between processing symbols (default: 75 seconds)
+- `max_retries`: Maximum retry attempts for failed symbols (default: 3)
+
+
+## Troubleshooting
+
+### Common Issues:
+
+#### API Collection Issues
+- **API rate limits**: Verify your approach configuration and adjust parameters if needed
+- **Connection timeouts**: Check your internet connection and retry
+- **Missing data**: Some symbols may not have complete data available; check logs for details
+
+#### Auto Tor Issues
+- **Cannot connect to Tor**: 
+  - Ensure Tor Browser is running
+  - Verify you clicked "Always connect automatically" when Tor Browser opened
+  - Check if port 9150 is accessible
+
+ 
 ## Project Information
 
 This is a school project created to demonstrate data acquisition, storage and integration techniques using web scraping, API calls, and interactive visualization.
@@ -85,3 +220,10 @@ This is a school project created to demonstrate data acquisition, storage and in
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+
+
+
+
+
+
