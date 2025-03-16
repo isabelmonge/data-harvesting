@@ -1,0 +1,559 @@
+library(httr)
+library(jsonlite)
+library(dplyr)
+library(dotenv)
+
+# Load environment variables for API keys
+dotenv::load_dot_env()
+
+# Function to get API keys from environment variables
+get_api_keys <- function() {
+  # Get all environment variables
+  all_env <- Sys.getenv()
+  
+  # Filter for Alpha Vantage keys
+  key_names <- grep("^ALPHA_VANTAGE_KEY_", names(all_env), value = TRUE)
+  
+  # Extract the values
+  api_keys <- sapply(key_names, function(key) Sys.getenv(key))
+  
+  # Filter out empty keys
+  api_keys <- api_keys[api_keys != ""]
+  
+  if (length(api_keys) == 0) {
+    stop("No Alpha Vantage API keys found in environment variables. Please check your .env file.")
+  }
+  
+  cat("Found", length(api_keys), "API keys in environment variables\n")
+  return(api_keys)
+}
+
+# Improved key manager function
+create_key_manager <- function(api_keys) {
+  key_status <- data.frame(
+    key = api_keys,
+    calls_made = 0,
+    last_used = as.POSIXct(NA),
+    last_minute_calls = 0,
+    last_minute_start = as.POSIXct(NA)
+  )
+  
+  function() {
+    current_time <- Sys.time()
+    
+    # Reset minute counters if more than a minute has passed
+    minute_passed <- !is.na(key_status$last_minute_start) & 
+      difftime(current_time, key_status$last_minute_start, units="mins") >= 1
+    key_status$last_minute_calls[minute_passed] <- 0
+    key_status$last_minute_start[minute_passed] <- current_time
+    
+    # Initialize minute start time for new keys
+    key_status$last_minute_start[is.na(key_status$last_minute_start)] <- current_time
+    
+    # Find available key with least usage in the last minute
+    available_key <- key_status %>%
+      filter(
+        calls_made < 25,  # Daily limit
+        last_minute_calls < 5  # Per-minute limit
+      ) %>%
+      arrange(last_minute_calls, calls_made, last_used) %>%
+      slice(1)
+    
+    if(nrow(available_key) == 0) {
+      # Calculate wait time until next available slot
+      min_wait <- 60 - as.numeric(difftime(current_time, 
+                                           min(key_status$last_minute_start),
+                                           units="secs"))
+      Sys.sleep(min_wait + 1)  # Add 1 second buffer
+      return(Recall())  # Retry after waiting
+    }
+    
+    # Update usage for selected key
+    key_index <- which(key_status$key == available_key$key)
+    key_status$calls_made[key_index] <<- key_status$calls_made[key_index] + 1
+    key_status$last_used[key_index] <<- current_time
+    key_status$last_minute_calls[key_index] <<- key_status$last_minute_calls[key_index] + 1
+    
+    # Print status
+    cat("\nUsing API key:", substr(available_key$key, 1, 5), "...",
+        "\nDaily usage:", key_status$calls_made[key_index], "/25",
+        "\nMinute usage:", key_status$last_minute_calls[key_index], "/5\n")
+    
+    return(available_key$key)
+  }
+}
+
+# Function to extract comprehensive metrics from the OVERVIEW endpoint - consistent with other scripts
+extract_company_metrics <- function(data, symbol) {
+  tryCatch({
+    metrics <- data.frame(
+      # Basic Information
+      Symbol = symbol,
+      Name = ifelse(is.null(data$Name), NA, data$Name),
+      Sector = ifelse(is.null(data$Sector), NA, data$Sector),
+      Industry = ifelse(is.null(data$Industry), NA, data$Industry),
+      
+      # Valuation Metrics
+      PE_Ratio = ifelse(is.null(data$PERatio), NA, as.numeric(data$PERatio)),
+      PEG_Ratio = ifelse(is.null(data$PEGRatio), NA, as.numeric(data$PEGRatio)),
+      Price_to_Book = ifelse(is.null(data$PriceToBookRatio), NA, as.numeric(data$PriceToBookRatio)),
+      Price_to_Sales = ifelse(is.null(data$PriceToSalesRatioTTM), NA, as.numeric(data$PriceToSalesRatioTTM)),
+      EV_to_EBITDA = ifelse(is.null(data$EVToEBITDA), NA, as.numeric(data$EVToEBITDA)),
+      EV_to_Revenue = ifelse(is.null(data$EVToRevenue), NA, as.numeric(data$EVToRevenue)),
+      
+      # Profitability 
+      Profit_Margin = ifelse(is.null(data$ProfitMargin), NA, as.numeric(data$ProfitMargin)),
+      Operating_Margin = ifelse(is.null(data$OperatingMarginTTM), NA, as.numeric(data$OperatingMarginTTM)),
+      Return_on_Assets = ifelse(is.null(data$ReturnOnAssetsTTM), NA, as.numeric(data$ReturnOnAssetsTTM)),
+      Return_on_Equity = ifelse(is.null(data$ReturnOnEquityTTM), NA, as.numeric(data$ReturnOnEquityTTM)),
+      
+      # Growth
+      Revenue_Growth_YOY = ifelse(is.null(data$QuarterlyRevenueGrowthYOY), NA, as.numeric(data$QuarterlyRevenueGrowthYOY)),
+      EPS_Growth_YOY = ifelse(is.null(data$QuarterlyEarningsGrowthYOY), NA, as.numeric(data$QuarterlyEarningsGrowthYOY)),
+      
+      # Financial Health
+      Current_Ratio = ifelse(is.null(data$CurrentRatio), NA, as.numeric(data$CurrentRatio)),
+      Debt_to_Equity = ifelse(is.null(data$DebtToEquityRatio), NA, as.numeric(data$DebtToEquityRatio)),
+      Interest_Coverage = ifelse(is.null(data$InterestCoverageRatio), NA, as.numeric(data$InterestCoverageRatio)),
+      
+      # Dividend & Shareholder Returns
+      Dividend_Yield = ifelse(is.null(data$DividendYield), NA, as.numeric(data$DividendYield)),
+      Dividend_Per_Share = ifelse(is.null(data$DividendPerShare), NA, as.numeric(data$DividendPerShare)),
+      Dividend_Payout_Ratio = ifelse(is.null(data$PayoutRatio), NA, as.numeric(data$PayoutRatio)),
+      
+      # Market & Technical
+      Beta = ifelse(is.null(data$Beta), NA, as.numeric(data$Beta)),
+      Fifty_Two_Week_High = ifelse(is.null(data$`52WeekHigh`), NA, as.numeric(data$`52WeekHigh`)),
+      Fifty_Two_Week_Low = ifelse(is.null(data$`52WeekLow`), NA, as.numeric(data$`52WeekLow`)),
+      
+      # Additional Size/Scale Metrics
+      Market_Cap = ifelse(is.null(data$MarketCapitalization), NA, as.numeric(data$MarketCapitalization)),
+      EBITDA = ifelse(is.null(data$EBITDA), NA, as.numeric(data$EBITDA)),
+      Revenue_TTM = ifelse(is.null(data$RevenueTTM), NA, as.numeric(data$RevenueTTM)),
+      
+      # Add date collected
+      Date_Collected = Sys.Date(),
+      
+      stringsAsFactors = FALSE
+    )
+    
+    return(metrics)
+  }, error = function(e) {
+    cat("Error processing data for", symbol, ":", e$message, "\n")
+    # Return minimal data if error occurs
+    data.frame(Symbol = symbol, Name = NA, Sector = NA, Date_Collected = Sys.Date(), stringsAsFactors = FALSE)
+  })
+}
+
+# Function to get company data - replaced the simpler version with one matching the overall metrics extraction
+get_company_data <- function(symbol, get_key, max_attempts = 3) {
+  Sys.sleep(15)  # Initial sleep to respect rate limits
+  
+  for(retry in 1:max_attempts) {
+    api_key <- get_key()
+    
+    url <- sprintf("https://www.alphavantage.co/query?function=OVERVIEW&symbol=%s&apikey=%s",
+                   symbol, api_key)
+    
+    # Print the URL (with masked API key)
+    masked_url <- gsub(api_key, "***", url)
+    cat("\nAttempting request:", masked_url, "\n")
+    
+    response <- tryCatch({
+      GET(url)
+    }, error = function(e) {
+      cat("Error during request:", e$message, "\n")
+      return(NULL)
+    })
+    
+    if(is.null(response)) {
+      cat("Network error. Waiting 30 seconds before retry...\n")
+      Sys.sleep(30)
+      next
+    }
+    
+    content <- tryCatch({
+      fromJSON(rawToChar(response$content))
+    }, error = function(e) {
+      cat("Error parsing response:", e$message, "\n")
+      return(NULL)
+    })
+    
+    if(is.null(content)) {
+      cat("Failed to parse response. Waiting 30 seconds before retry...\n")
+      Sys.sleep(30)
+      next
+    }
+    
+    # Print response status for debugging
+    cat("Response status:", response$status_code, "\n")
+    
+    # Check for API limit message
+    if(!is.null(content$Information) && 
+       grepl("API rate limit", content$Information, ignore.case=TRUE)) {
+      cat("Rate limit hit, waiting 65 seconds before retry...\n")
+      Sys.sleep(65)  
+      next
+    }
+    
+    # Check for error message
+    if(!is.null(content$`Error Message`)) {
+      cat("API Error:", content$`Error Message`, "\n")
+      cat("Waiting 30 seconds before retry...\n")
+      Sys.sleep(30)
+      next
+    }
+    
+    # Check if we got valid data
+    if(length(content) > 1 && !is.null(content$Symbol)) {
+      cat("Successfully received data for", symbol, "\n")
+      return(content)
+    } else {
+      cat("Invalid or empty response received. Waiting 30 seconds before retry...\n")
+      Sys.sleep(30)
+    }
+  }
+  
+  cat("No valid data received for", symbol, "after", max_attempts, "attempts\n")
+  return(NULL)
+}
+
+# Function to get S&P 500 symbols - consistent with other scripts
+get_sp500_symbols <- function() {
+  tryCatch({
+    # Using Wikipedia as source
+    url <- "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+    
+    # Import libraries if needed
+    if (!requireNamespace("rvest", quietly = TRUE)) {
+      install.packages("rvest")
+      library(rvest)
+    } else {
+      library(rvest)
+    }
+    
+    # Scrape the table
+    page <- read_html(url)
+    tables <- html_nodes(page, "table.wikitable")
+    sp500_table <- html_table(tables[1], fill = TRUE)[[1]]
+    
+    # Extract symbols
+    symbols <- sp500_table$Symbol
+    
+    # Clean symbols (remove .* if present)
+    symbols <- gsub("\\.", "-", symbols)
+    
+    cat("Retrieved", length(symbols), "S&P 500 symbols\n")
+    return(symbols)
+  }, error = function(e) {
+    cat("Error retrieving S&P 500 symbols:", e$message, "\n")
+    cat("Using backup S&P 500 symbols list\n")
+    
+    # Backup list of major S&P 500 components (top 30 by weight)
+    backup_symbols <- c("AAPL", "MSFT", "AMZN", "NVDA", "GOOGL", "META", "GOOG", "BRK-B", 
+                        "UNH", "LLY", "JPM", "XOM", "V", "AVGO", "PG", "MA", "HD", "COST", 
+                        "MRK", "ABBV", "CVX", "PEP", "KO", "ADBE", "WMT", "CRM", "BAC", 
+                        "TMO", "ACN", "MCD")
+    return(backup_symbols)
+  })
+}
+
+# Function to collect data using multiple keys with manual VPN rotation
+collect_data_with_manual_ip_rotation <- function(symbols, start_index = 1, requests_per_ip = 25) {
+  # Load API keys from .env file
+  api_keys <- get_api_keys()
+  
+  # Initialize results list and tracking variables
+  results <- list()
+  ip_request_count <- 0
+  current_index <- start_index
+  
+  # Load existing progress if available
+  progress_file <- "manual_ip_rotation_progress.rds"
+  if (file.exists(progress_file)) {
+    previous_results <- readRDS(progress_file)
+    results <- previous_results
+    cat("Loaded", length(previous_results), "previously collected companies\n")
+  }
+  
+  # Initialize key manager
+  get_key <- create_key_manager(api_keys)
+  
+  # Progress log
+  log_file <- "manual_ip_rotation_log.txt"
+  if (!file.exists(log_file)) {
+    cat(paste("Data collection log started on", Sys.time(), "\n"), file = log_file)
+  }
+  
+  # Process symbols
+  cat("\n==== Starting data collection with manual IP rotation ====\n")
+  cat("Processing symbols", start_index, "to", length(symbols), "\n")
+  cat("Using", requests_per_ip, "requests per IP before prompting for rotation\n\n")
+  
+  for(i in seq_along(symbols)) {
+    if (i < start_index) next  # Skip already processed symbols
+    
+    symbol <- symbols[i]
+    current_index <- i
+    
+    # Check IP request count
+    if (ip_request_count >= requests_per_ip) {
+      cat("\n\n!!! VPN ROTATION REQUIRED !!!\n")
+      cat("Reached", requests_per_ip, "requests with current IP\n")
+      cat("Please:\n")
+      cat("1. Switch your VPN to a new location\n")
+      cat("2. Run main(start_index =", current_index, ") to continue\n")
+      cat("Progress has been saved - you can safely stop here\n\n")
+      
+      # Log the VPN rotation point
+      cat(paste0(Sys.time(), " - VPN rotation point reached. Processed ", 
+                 current_index - 1, " symbols, next start_index: ", current_index, "\n"), 
+          file = log_file, append = TRUE)
+      
+      # Save a marker for restart
+      restart_info <- list(
+        next_start_index = current_index,
+        last_processed = symbol,
+        timestamp = Sys.time()
+      )
+      saveRDS(restart_info, "manual_ip_rotation_restart.rds")
+      
+      # Return only the restart index to avoid printing large results
+      return(current_index)
+    }
+    
+    # Display progress
+    cat(sprintf("\n-- Processing %d/%d: %s --\n", i, length(symbols), symbol))
+    cat("IP Requests:", ip_request_count, "/", requests_per_ip, "\n")
+    
+    # Get company data
+    cat("Attempting to get data for", symbol, "\n")
+    data <- get_company_data(symbol, get_key)
+    ip_request_count <- ip_request_count + 1
+    
+    if(!is.null(data)) {
+      # Extract metrics
+      metrics <- extract_company_metrics(data, symbol)
+      results[[symbol]] <- metrics
+      
+      # Save progress after each successful request
+      saveRDS(results, progress_file)
+      
+      # Also update the combined fundamentals file with each new addition
+      if (file.exists("sp500_fundamentals_manual_approach.csv")) {
+        # Read existing CSV
+        existing_df <- read.csv("sp500_fundamentals_manual_approach.csv", stringsAsFactors = FALSE)
+        
+        # Remove this symbol if it exists (for update)
+        existing_df <- existing_df[existing_df$Symbol != symbol, ]
+        
+        # Add the new data
+        updated_df <- rbind(existing_df, metrics)
+        
+        # Write back to CSV
+        write.csv(updated_df, "sp500_fundamentals_manual_approach.csv", row.names = FALSE)
+      } else {
+        # First company, create new file
+        write.csv(metrics, "sp500_fundamentals_manual_approach.csv", row.names = FALSE)
+      }
+      
+      # Also save as CSV for easy viewing
+      partial_data <- do.call(rbind, results)
+      write.csv(partial_data, "sp500_fundamentals_manual_approach_partial.csv", row.names = FALSE)
+      
+      # Log success
+      cat(paste0(Sys.time(), " - Successfully collected data for ", symbol, "\n"), 
+          file = log_file, append = TRUE)
+      
+      cat("Progress saved. Successfully collected", length(results), "companies\n")
+    } else {
+      cat("Failed to get data for", symbol, "\n")
+      
+      # Log failure
+      cat(paste0(Sys.time(), " - Failed to collect data for ", symbol, "\n"), 
+          file = log_file, append = TRUE)
+    }
+    
+    # Warning when approaching limit
+    if (ip_request_count >= (requests_per_ip - 5)) {
+      cat("\nWARNING: Approaching IP request limit. Only", 
+          requests_per_ip - ip_request_count, "requests remaining\n")
+    }
+    
+    # Wait between requests
+    if (i < length(symbols) && ip_request_count < requests_per_ip) {
+      wait_time <- runif(1, 10, 20)  # Random wait between 10-20 seconds
+      cat("Waiting", round(wait_time, 1), "seconds before next request...\n")
+      Sys.sleep(wait_time)
+    }
+  }
+  
+  # Collection complete
+  cat("\n==== Data collection complete ====\n")
+  cat("Successfully collected data for", length(results), "companies\n")
+  
+  # Combine all results and save final CSV
+  final_data <- do.call(rbind, results)
+  write.csv(final_data, "sp500_fundamentals_manual_approach.csv", row.names = FALSE)
+  
+  # Save a copy with timestamp for versioning
+  timestamp_file <- paste0("sp500_fundamentals_manual_approach_", format(Sys.time(), "%Y%m%d_%H%M"), ".csv")
+  write.csv(final_data, timestamp_file, row.names = FALSE)
+  cat("Final data saved to:", "sp500_fundamentals_manual_approach.csv", "\n")
+  cat("Timestamped copy saved to:", timestamp_file, "\n")
+  
+  # Log completion
+  cat(paste0(Sys.time(), " - Data collection complete. Total companies collected: ", 
+             length(results), "\n"), 
+      file = log_file, append = TRUE)
+  
+  # Return only the restart index (NULL) to avoid printing large results
+  return(NULL)  # No restart needed, collection complete
+}
+
+# Helper function to check collection progress
+check_collection_progress <- function() {
+  progress_file <- "manual_ip_rotation_progress.rds"
+  restart_file <- "manual_ip_rotation_restart.rds"
+  
+  if (file.exists(progress_file)) {
+    results <- readRDS(progress_file)
+    collected_symbols <- names(results)
+    
+    cat("Collection progress:\n")
+    cat("Companies collected:", length(collected_symbols), "\n")
+    
+    if (length(collected_symbols) > 0) {
+      cat("Last company collected:", collected_symbols[length(collected_symbols)], "\n")
+    }
+    
+    if (file.exists(restart_file)) {
+      restart_info <- readRDS(restart_file)
+      cat("\nRestart information available:\n")
+      cat("Next start index:", restart_info$next_start_index, "\n")
+      cat("Last attempted:", restart_info$last_processed, "\n")
+      cat("Timestamp:", format(restart_info$timestamp, "%Y-%m-%d %H:%M:%S"), "\n")
+      cat("\nTo continue collection, use:\n")
+      cat("main(start_index =", restart_info$next_start_index, ")\n")
+    } else {
+      # Estimate next start index based on collected symbols
+      cat("\nTo continue collection, use:\n")
+      cat("main(start_index =", length(collected_symbols) + 1, ")\n")
+    }
+  } else {
+    cat("No progress file found. Start from beginning with:\n")
+    cat("main(start_index = 1)\n")
+  }
+}
+
+# Function to intelligently select uncollected tickers
+select_uncollected_tickers <- function(max_tickers = 100, data_file = "sp500_fundamentals_manual_approach.csv") {
+  # Get all S&P 500 symbols
+  all_sp500 <- get_sp500_symbols()
+  cat("Retrieved", length(all_sp500), "S&P 500 symbols\n")
+  
+  # Check if we already have data for some companies
+  if (file.exists(data_file)) {
+    cat("Found existing data file:", data_file, "\n")
+    existing_data <- read.csv(data_file, stringsAsFactors = FALSE)
+    
+    # Extract the symbols we already have
+    collected_symbols <- unique(existing_data$Symbol)
+    cat("Already collected data for", length(collected_symbols), "companies\n")
+    
+    # Find symbols that haven't been collected yet
+    uncollected_symbols <- all_sp500[!all_sp500 %in% collected_symbols]
+    cat("Found", length(uncollected_symbols), "uncollected companies\n")
+    
+    if (length(uncollected_symbols) == 0) {
+      cat("You've already collected data for all S&P 500 companies!\n")
+      cat("Consider updating older data if needed.\n")
+      return(NULL)
+    }
+    
+    # If we have fewer uncollected than max_tickers, return all of them
+    if (length(uncollected_symbols) <= max_tickers) {
+      cat("Returning all", length(uncollected_symbols), "uncollected symbols\n")
+      return(uncollected_symbols)
+    }
+    
+    # Otherwise, sample from the uncollected symbols
+    cat("Sampling", max_tickers, "from", length(uncollected_symbols), "uncollected symbols\n")
+    set.seed(as.numeric(Sys.time())) # Random seed based on current time
+    selected_symbols <- sample(uncollected_symbols, max_tickers)
+  } else {
+    cat("No existing data file found. Sampling from all S&P 500 companies.\n")
+    # Sample from all symbols if no existing data
+    set.seed(as.numeric(Sys.time()))
+    selected_symbols <- sample(all_sp500, min(max_tickers, length(all_sp500)))
+  }
+  
+  # Save the selected symbols
+  symbols_df <- data.frame(
+    symbol = selected_symbols,
+    selection_date = Sys.Date(),
+    stringsAsFactors = FALSE
+  )
+  write.csv(symbols_df, "selected_uncollected_symbols.csv", row.names = FALSE)
+  cat("Saved selected symbols to selected_uncollected_symbols.csv\n")
+  
+  return(selected_symbols)
+}
+
+# Main execution function
+main <- function(max_tickers = 100, requests_per_ip = 25, start_index = 1, 
+                 data_file = "sp500_fundamentals_manual_approach.csv", sample_size = NULL) {
+  # For backward compatibility - if sample_size is provided, use it for max_tickers
+  if (!is.null(sample_size)) {
+    max_tickers <- sample_size
+    cat("Using sample_size =", sample_size, "for backward compatibility\n")
+  }
+  
+  # Get or load symbols list
+  symbols_file <- "selected_uncollected_symbols.csv"
+  
+  # If starting from the beginning (start_index = 1), select new uncollected tickers
+  if (start_index == 1 || !file.exists(symbols_file)) {
+    cat("Selecting uncollected tickers...\n")
+    symbols <- select_uncollected_tickers(max_tickers, data_file)
+    
+    # Check if we have any symbols to collect
+    if (is.null(symbols) || length(symbols) == 0) {
+      cat("No symbols to collect. Exiting.\n")
+      return(invisible(NULL))
+    }
+  } else {
+    # If continuing, load the previously selected symbols
+    cat("Loading previously selected symbols...\n")
+    symbols_df <- read.csv(symbols_file, stringsAsFactors = FALSE)
+    symbols <- symbols_df$symbol
+    cat("Loaded", length(symbols), "previously selected symbols\n")
+    cat("Continuing from index", start_index, "\n")
+  }
+  
+  # Run the data collection process
+  cat("\n==== STARTING DATA COLLECTION WITH MANUAL IP ROTATION ====\n")
+  next_index <- collect_data_with_manual_ip_rotation(
+    symbols = symbols,
+    start_index = start_index,
+    requests_per_ip = requests_per_ip
+  )
+  
+  # Return the next start index if provided, or NULL if collection is complete
+  if (!is.null(next_index)) {
+    cat("\nTo continue after changing your VPN, run:\n")
+    cat("main(start_index =", next_index, ")\n")
+  } else {
+    cat("\nData collection complete!\n")
+    cat("To collect more uncollected tickers, run main() again.\n")
+  }
+  
+  # Don't return anything to avoid printing large data structures
+  invisible(next_index)
+}
+
+# Example usage:
+# 1. First run: main(sample_size = 100, requests_per_ip = 25)
+# 2. After changing VPN: check_collection_progress()
+# 3. Continue: main(start_index = [value from check_collection_progress])
+

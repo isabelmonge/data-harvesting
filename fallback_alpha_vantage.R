@@ -1,0 +1,551 @@
+library(httr)
+library(jsonlite)
+library(dotenv)
+
+# Load environment variables for API keys
+dotenv::load_dot_env()
+
+# Function to get API keys from environment variables
+get_api_keys <- function() {
+  # Get all environment variables
+  all_env <- Sys.getenv()
+  
+  # Filter for Alpha Vantage keys
+  key_names <- grep("^ALPHA_VANTAGE_KEY_", names(all_env), value = TRUE)
+  
+  # Extract the values
+  api_keys <- sapply(key_names, function(key) Sys.getenv(key))
+  
+  # Filter out empty keys
+  api_keys <- api_keys[api_keys != ""]
+  
+  if (length(api_keys) == 0) {
+    stop("No Alpha Vantage API keys found in environment variables. Please check your .env file.")
+  }
+  
+  cat("Found", length(api_keys), "API keys in environment variables\n")
+  return(api_keys)
+}
+
+# Function to get company data via Alpha Vantage with automatic key rotation
+get_company_data <- function(symbol, api_keys, max_attempts = 3) {
+  # Track used keys that hit their limit
+  failed_keys <- c()
+  
+  # Try each API key until success or all keys fail
+  for (key_idx in 1:length(api_keys)) {
+    current_key <- api_keys[key_idx]
+    
+    # Skip keys that have already failed
+    if (current_key %in% failed_keys) {
+      next
+    }
+    
+    cat("Trying API key", key_idx, "for symbol", symbol, "\n")
+    
+    for (attempt in 1:max_attempts) {
+      # Build the Alpha Vantage API URL
+      url <- paste0(
+        "https://www.alphavantage.co/query?function=OVERVIEW&symbol=", 
+        symbol, 
+        "&apikey=", 
+        current_key
+      )
+      
+      cat("Fetching data for", symbol, "(attempt", attempt, ")...\n")
+      
+      # Make the request
+      tryCatch({
+        response <- httr::GET(url)
+        content <- httr::content(response, "text", encoding = "UTF-8")
+        
+        # Parse the JSON response
+        data <- fromJSON(content)
+        
+        # Check for API errors or limits
+        if (!is.null(data$Information) && grepl("API rate limit", data$Information)) {
+          cat("API rate limit hit for key", key_idx, "\n")
+          # Mark this key as failed and try another key
+          failed_keys <- c(failed_keys, current_key)
+          break
+        }
+        
+        if (!is.null(data$`Error Message`)) {
+          cat("API Error for", symbol, ":", data$`Error Message`, "\n")
+          if (attempt < max_attempts) {
+            cat("Retrying with same key...\n")
+            Sys.sleep(5)
+            next
+          }
+          return(NULL)
+        }
+        
+        if (length(data) == 0 || (length(data) == 1 && is.null(names(data)))) {
+          cat("Empty response received for", symbol, "\n")
+          if (attempt < max_attempts) {
+            cat("Retrying with same key...\n")
+            Sys.sleep(5)
+            next
+          }
+          return(NULL)
+        }
+        
+        cat("Successfully fetched data for", symbol, "using key", key_idx, "\n")
+        return(data)
+        
+      }, error = function(e) {
+        cat("Error fetching data for", symbol, "(attempt", attempt, "):", e$message, "\n")
+        if (attempt < max_attempts) {
+          cat("Waiting before retry...\n")
+          Sys.sleep(5)
+        }
+      })
+    }
+    
+    # If we reached this point, this key either failed or hit its rate limit
+    # Continue with the next key
+  }
+  
+  # If we tried all keys and all failed
+  if (length(failed_keys) == length(api_keys)) {
+    cat("All API keys have reached their rate limits. Try again tomorrow.\n")
+  } else {
+    cat("Failed to fetch data for", symbol, "after trying all available keys.\n")
+  }
+  
+  return(NULL)
+}
+
+# Function to extract comprehensive metrics from the OVERVIEW endpoint
+extract_company_metrics <- function(data, symbol) {
+  tryCatch({
+    metrics <- data.frame(
+      # Basic Information
+      Symbol = symbol,
+      Name = ifelse(is.null(data$Name), NA, data$Name),
+      Sector = ifelse(is.null(data$Sector), NA, data$Sector),
+      Industry = ifelse(is.null(data$Industry), NA, data$Industry),
+      
+      # Valuation Metrics
+      PE_Ratio = ifelse(is.null(data$PERatio), NA, as.numeric(data$PERatio)),
+      PEG_Ratio = ifelse(is.null(data$PEGRatio), NA, as.numeric(data$PEGRatio)),
+      Price_to_Book = ifelse(is.null(data$PriceToBookRatio), NA, as.numeric(data$PriceToBookRatio)),
+      Price_to_Sales = ifelse(is.null(data$PriceToSalesRatioTTM), NA, as.numeric(data$PriceToSalesRatioTTM)),
+      EV_to_EBITDA = ifelse(is.null(data$EVToEBITDA), NA, as.numeric(data$EVToEBITDA)),
+      EV_to_Revenue = ifelse(is.null(data$EVToRevenue), NA, as.numeric(data$EVToRevenue)),
+      
+      # Profitability 
+      Profit_Margin = ifelse(is.null(data$ProfitMargin), NA, as.numeric(data$ProfitMargin)),
+      Operating_Margin = ifelse(is.null(data$OperatingMarginTTM), NA, as.numeric(data$OperatingMarginTTM)),
+      Return_on_Assets = ifelse(is.null(data$ReturnOnAssetsTTM), NA, as.numeric(data$ReturnOnAssetsTTM)),
+      Return_on_Equity = ifelse(is.null(data$ReturnOnEquityTTM), NA, as.numeric(data$ReturnOnEquityTTM)),
+      
+      # Growth
+      Revenue_Growth_YOY = ifelse(is.null(data$QuarterlyRevenueGrowthYOY), NA, as.numeric(data$QuarterlyRevenueGrowthYOY)),
+      EPS_Growth_YOY = ifelse(is.null(data$QuarterlyEarningsGrowthYOY), NA, as.numeric(data$QuarterlyEarningsGrowthYOY)),
+      
+      # Financial Health
+      Current_Ratio = ifelse(is.null(data$CurrentRatio), NA, as.numeric(data$CurrentRatio)),
+      Debt_to_Equity = ifelse(is.null(data$DebtToEquityRatio), NA, as.numeric(data$DebtToEquityRatio)),
+      Interest_Coverage = ifelse(is.null(data$InterestCoverageRatio), NA, as.numeric(data$InterestCoverageRatio)),
+      
+      # Dividend & Shareholder Returns
+      Dividend_Yield = ifelse(is.null(data$DividendYield), NA, as.numeric(data$DividendYield)),
+      Dividend_Per_Share = ifelse(is.null(data$DividendPerShare), NA, as.numeric(data$DividendPerShare)),
+      Dividend_Payout_Ratio = ifelse(is.null(data$PayoutRatio), NA, as.numeric(data$PayoutRatio)),
+      
+      # Market & Technical
+      Beta = ifelse(is.null(data$Beta), NA, as.numeric(data$Beta)),
+      Fifty_Two_Week_High = ifelse(is.null(data$`52WeekHigh`), NA, as.numeric(data$`52WeekHigh`)),
+      Fifty_Two_Week_Low = ifelse(is.null(data$`52WeekLow`), NA, as.numeric(data$`52WeekLow`)),
+      
+      # Additional Size/Scale Metrics
+      Market_Cap = ifelse(is.null(data$MarketCapitalization), NA, as.numeric(data$MarketCapitalization)),
+      EBITDA = ifelse(is.null(data$EBITDA), NA, as.numeric(data$EBITDA)),
+      Revenue_TTM = ifelse(is.null(data$RevenueTTM), NA, as.numeric(data$RevenueTTM)),
+      
+      # Add date collected
+      Date_Collected = Sys.Date(),
+      
+      stringsAsFactors = FALSE
+    )
+    
+    return(metrics)
+  }, error = function(e) {
+    cat("Error processing data for", symbol, ":", e$message, "\n")
+    # Return minimal data if error occurs
+    data.frame(Symbol = symbol, Name = NA, Sector = NA, Date_Collected = Sys.Date(), stringsAsFactors = FALSE)
+  })
+}
+
+# Function to get S&P 500 symbols
+get_sp500_symbols <- function() {
+  tryCatch({
+    # Using Wikipedia as source
+    url <- "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+    
+    # Import libraries if needed
+    if (!requireNamespace("rvest", quietly = TRUE)) {
+      install.packages("rvest")
+      library(rvest)
+    } else {
+      library(rvest)
+    }
+    
+    # Scrape the table
+    page <- read_html(url)
+    tables <- html_nodes(page, "table.wikitable")
+    sp500_table <- html_table(tables[1], fill = TRUE)[[1]]
+    
+    # Extract symbols
+    symbols <- sp500_table$Symbol
+    
+    # Clean symbols (remove .* if present)
+    symbols <- gsub("\\.", "-", symbols)
+    
+    cat("Retrieved", length(symbols), "S&P 500 symbols\n")
+    return(symbols)
+  }, error = function(e) {
+    cat("Error retrieving S&P 500 symbols:", e$message, "\n")
+    cat("Using backup S&P 500 symbols list\n")
+    
+    # Backup list of major S&P 500 components (top 30 by weight)
+    backup_symbols <- c("AAPL", "MSFT", "AMZN", "NVDA", "GOOGL", "META", "GOOG", "BRK-B", 
+                        "UNH", "LLY", "JPM", "XOM", "V", "AVGO", "PG", "MA", "HD", "COST", 
+                        "MRK", "ABBV", "CVX", "PEP", "KO", "ADBE", "WMT", "CRM", "BAC", 
+                        "TMO", "ACN", "MCD")
+    return(backup_symbols)
+  })
+}
+
+# Function to prioritize symbols by market cap
+prioritize_by_market_cap <- function(symbols, refresh_top_n_every = 5, combined_file = "sp500_fundamentals_combined.csv") {
+  # Check if we already have market cap data
+  if (file.exists(combined_file)) {
+    cat("Found existing data file:", combined_file, "\n")
+    cat("Using it to prioritize by market cap...\n")
+    
+    # Read existing data
+    existing_data <- read.csv(combined_file, stringsAsFactors = FALSE)
+    
+    # Check if Market_Cap column exists
+    if ("Market_Cap" %in% names(existing_data)) {
+      # Remove NA market caps
+      existing_data <- existing_data[!is.na(existing_data$Market_Cap), ]
+      
+      # Sort by market cap (descending)
+      sorted_data <- existing_data[order(-existing_data$Market_Cap), ]
+      
+      # Get top companies that should be refreshed more frequently
+      top_companies <- sorted_data$Symbol[1:min(25, nrow(sorted_data))]
+      
+      cat("Top companies by market cap:", paste(top_companies[1:5], collapse=", "), "...\n")
+      
+      # Determine which day in the cycle we're on
+      cycle_file <- "cycle_day.txt"
+      if (file.exists(cycle_file)) {
+        cycle_day <- as.integer(readLines(cycle_file))
+        cycle_day <- cycle_day %% refresh_top_n_every + 1
+      } else {
+        cycle_day <- 1
+      }
+      
+      # Save the cycle day for next run
+      writeLines(as.character(cycle_day), cycle_file)
+      
+      cat("Current cycle day:", cycle_day, "of", refresh_top_n_every, "\n")
+      
+      # If it's day 1 of the cycle, refresh top companies
+      if (cycle_day == 1) {
+        cat("Today is refresh day. Prioritizing top", length(top_companies), "companies.\n")
+        
+        # On refresh day, just return the top companies
+        prioritized_symbols <- top_companies
+      } else {
+        # On regular days, get companies that haven't been collected yet
+        # Calculate how many companies we've processed so far
+        processed_count <- (cycle_day - 1) * 25
+        
+        # Get all companies except the top ones, starting from the processed count
+        remaining_symbols <- sorted_data$Symbol[!(sorted_data$Symbol %in% top_companies)]
+        
+        # Select the next 25 companies
+        start_idx <- processed_count + 1
+        end_idx <- min(start_idx + 24, length(remaining_symbols))
+        
+        # Check if we've reached the end
+        if (start_idx > length(remaining_symbols)) {
+          cat("Completed a full cycle. Starting over with non-top companies.\n")
+          prioritized_symbols <- remaining_symbols[1:min(25, length(remaining_symbols))]
+        } else {
+          cat("Regular collection day. Processing companies", start_idx, "to", end_idx, "\n")
+          prioritized_symbols <- remaining_symbols[start_idx:end_idx]
+        }
+      }
+      
+      # Add any new symbols that aren't in our existing data if we have space
+      if (length(prioritized_symbols) < 25) {
+        all_existing_symbols <- c(top_companies, remaining_symbols)
+        new_symbols <- symbols[!(symbols %in% all_existing_symbols)]
+        
+        if (length(new_symbols) > 0) {
+          spaces_left <- 25 - length(prioritized_symbols)
+          new_to_add <- new_symbols[1:min(spaces_left, length(new_symbols))]
+          cat("Adding", length(new_to_add), "new symbols to fill the 25 slots.\n")
+          prioritized_symbols <- c(prioritized_symbols, new_to_add)
+        }
+      }
+      
+      return(prioritized_symbols[1:min(25, length(prioritized_symbols))])
+    }
+  }
+  
+  # If we don't have market cap data yet or can't access it,
+  # just return the first 25 symbols
+  cat("No market cap data available in", combined_file, "\n")
+  cat("Using first 25 symbols from the S&P 500 list.\n")
+  return(symbols[1:min(25, length(symbols))])
+}
+
+# Function to collect data with forced refresh - ALWAYS gets new data for 25 symbols per day
+collect_data_force_refresh <- function(symbols, api_keys, max_daily_requests = 25, 
+                                       request_delay = 15, max_retries = 3,
+                                       combined_file = "sp500_fundamentals_combined.csv") {
+  cat("Starting FORCE REFRESH data collection (25 symbols per day)\n")
+  cat("Using", length(api_keys), "API keys with rotation on rate limits\n")
+  
+  # Ensure we only process exactly 25 symbols
+  if (length(symbols) > 25) {
+    cat("Limiting collection to first 25 symbols\n")
+    symbols <- symbols[1:25]
+  }
+  
+  cat("Will process exactly", length(symbols), "symbols today\n")
+  
+  # For force refresh, we create a new progress file each day
+  # We'll only use it to save today's data
+  today_progress_file <- paste0("alpha_vantage_progress_", Sys.Date(), ".rds")
+  progress_log <- "alpha_vantage_progress_log.txt"
+  
+  # Initialize progress log if it doesn't exist
+  if (!file.exists(progress_log)) {
+    cat(paste("Progress log created on", Sys.time(), "\n"), file = progress_log)
+  }
+  
+  # Today's results
+  today_results <- list()
+  
+  # Log start of data collection
+  cat(paste0(Sys.time(), " - Starting forced refresh of ", length(symbols), " symbols\n"), 
+      file = progress_log, append = TRUE)
+  
+  # Track API key usage across all symbols in this batch
+  failed_keys <- c() 
+  successful_symbols <- c()
+  
+  # Process each symbol
+  cat("\n==== Processing daily batch of 25 symbols (FORCE REFRESH) ====\n")
+  
+  # Process symbols
+  for (i in seq_along(symbols)) {
+    symbol <- symbols[i]
+    
+    cat("\n-- Processing symbol", i, "of", length(symbols), ":", symbol, "--\n")
+    
+    # Get data with all available API keys (will try them until one works)
+    available_keys <- api_keys[!(api_keys %in% failed_keys)]
+    
+    if (length(available_keys) == 0) {
+      cat("All API keys have reached their rate limits. Stopping batch processing.\n")
+      break
+    }
+    
+    data <- get_company_data(symbol, available_keys, max_retries)
+    
+    if (!is.null(data)) {
+      today_results[[symbol]] <- data
+      successful_symbols <- c(successful_symbols, symbol)
+      cat("Data for", symbol, "collected successfully\n")
+      
+      # Save progress after each successful request
+      saveRDS(today_results, today_progress_file)
+      cat("Progress saved to today's RDS file\n")
+      
+      # Convert to metrics
+      metrics <- extract_company_metrics(data, symbol)
+      
+      # Update the combined results file immediately for this symbol
+      if (file.exists(combined_file)) {
+        # Read existing CSV
+        combined_df <- tryCatch({
+          read.csv(combined_file, stringsAsFactors = FALSE)
+        }, error = function(e) {
+          cat("Error reading combined file:", e$message, "\n")
+          cat("Creating new combined file instead\n")
+          return(NULL)
+        })
+        
+        if (!is.null(combined_df)) {
+          # Check if the Date_Collected column exists, add it if it doesn't
+          if (!"Date_Collected" %in% names(combined_df)) {
+            combined_df$Date_Collected <- as.character(Sys.Date())
+            cat("Added Date_Collected column to existing data\n")
+          }
+          
+          # Ensure columns match by using a union of column names
+          all_cols <- union(names(combined_df), names(metrics))
+          
+          # Add missing columns to combined_df with NA values
+          for (col in all_cols) {
+            if (!col %in% names(combined_df)) {
+              combined_df[[col]] <- NA
+              cat("Added missing column", col, "to existing data\n")
+            }
+          }
+          
+          # Add missing columns to metrics with NA values
+          for (col in all_cols) {
+            if (!col %in% names(metrics)) {
+              metrics[[col]] <- NA
+              cat("Added missing column", col, "to new data for", symbol, "\n")
+            }
+          }
+          
+          # Ensure columns are in the same order
+          combined_df <- combined_df[, all_cols]
+          metrics <- metrics[, all_cols]
+          
+          # Remove this symbol if it exists (for update)
+          combined_df <- combined_df[combined_df$Symbol != symbol, ]
+          
+          # Add the new data
+          combined_df <- rbind(combined_df, metrics)
+          
+          # Write back to CSV
+          write.csv(combined_df, combined_file, row.names = FALSE)
+          cat("Combined CSV file updated with", symbol, "data\n")
+        } else {
+          # If we couldn't read the existing file, create a new one
+          write.csv(metrics, combined_file, row.names = FALSE)
+          cat("Created new combined CSV file with", symbol, "data\n")
+        }
+      } else {
+        # Create new CSV with just this symbol
+        write.csv(metrics, combined_file, row.names = FALSE)
+        cat("Combined CSV file created with", symbol, "data\n")
+      }
+      
+      # Log success
+      cat(paste0(Sys.time(), " - Successfully collected data for ", symbol, "\n"), 
+          file = progress_log, append = TRUE)
+    } else {
+      cat("Failed to get data for", symbol, "after", max_retries, "attempts\n")
+      
+      # Log failure
+      cat(paste0(Sys.time(), " - Failed to collect data for ", symbol, 
+                 " after ", max_retries, " attempts\n"), 
+          file = progress_log, append = TRUE)
+    }
+    
+    # Wait between requests to respect API rate limits
+    if (i < length(symbols)) {
+      cat("Waiting", request_delay, "seconds before next request...\n")
+      Sys.sleep(request_delay)
+    }
+  }
+  
+  # Batch complete
+  cat("\n==== Daily batch complete (FORCE REFRESH) ====\n")
+  cat("Successfully collected data for", length(successful_symbols), "symbols today\n")
+  
+  # Save exactly which symbols were processed today
+  writeLines(successful_symbols, paste0("processed_symbols_", Sys.Date(), ".txt"))
+  
+  # Log batch completion
+  cat(paste0(Sys.time(), " - Daily forced refresh complete. Total symbols refreshed today: ", 
+             length(successful_symbols), "\n"), 
+      file = progress_log, append = TRUE)
+  
+  # Create a separate batch CSV for today's data
+  if (length(successful_symbols) > 0) {
+    batch_df <- do.call(rbind, lapply(successful_symbols, function(symbol) {
+      if (symbol %in% names(today_results)) {
+        extract_company_metrics(today_results[[symbol]], symbol)
+      }
+    }))
+    
+    # Save as CSV for this batch
+    batch_file <- paste0("sp500_fundamentals_batch_", Sys.Date(), ".csv")
+    write.csv(batch_df, batch_file, row.names = FALSE)
+    cat("Today's batch results saved to", batch_file, "\n")
+  }
+  
+  return(successful_symbols)
+}
+
+# Function to determine the next cycle day automatically
+get_next_cycle_day <- function(refresh_cycle = 5) {
+  cycle_file <- "cycle_day.txt"
+  if (file.exists(cycle_file)) {
+    cycle_day <- as.integer(readLines(cycle_file))
+    next_cycle_day <- cycle_day %% refresh_cycle + 1
+  } else {
+    next_cycle_day <- 1
+  }
+  return(next_cycle_day)
+}
+
+# Main execution function
+main <- function(auto_mode = FALSE, refresh_top_companies_every = 5, combined_file = "sp500_fundamentals_combined.csv") {
+  # Get API keys
+  api_keys <- get_api_keys()
+  
+  # Get S&P 500 symbols
+  cat("Retrieving S&P 500 symbols...\n")
+  sp500_symbols <- get_sp500_symbols()
+  
+  if (length(sp500_symbols) == 0) {
+    cat("ERROR: Failed to retrieve S&P 500 symbols\n")
+    return(NULL)
+  }
+  
+  # Prioritize symbols by market cap - limited to 25 per day
+  prioritized_symbols <- prioritize_by_market_cap(sp500_symbols, refresh_top_companies_every, combined_file)
+  
+  cat("Symbols have been prioritized - selected 25 for today.\n")
+  
+  # Run the data collection process with forced refresh - always gets new data
+  cat("\n==== STARTING FORCE REFRESH DATA COLLECTION (25 SYMBOLS) ====\n")
+  collect_data_force_refresh(
+    symbols = prioritized_symbols,
+    api_keys = api_keys,
+    max_daily_requests = 25,  # Default daily limit for Alpha Vantage free tier
+    request_delay = 15,       # 15 seconds between requests to be safe
+    max_retries = 3,          # Retry up to 3 times per symbol
+    combined_file = combined_file  # Specified combined file
+  )
+}
+
+# Handle command-line arguments
+args <- commandArgs(trailingOnly = TRUE)
+auto_mode <- "--auto" %in% args
+
+# Find refresh cycle parameter if provided
+refresh_cycle <- 5  # Default
+refresh_arg <- grep("--refresh=", args, value = TRUE)
+if (length(refresh_arg) > 0) {
+  refresh_cycle <- as.integer(sub("--refresh=", "", refresh_arg))
+}
+
+# Find specified combined file if provided
+combined_file <- "sp500_fundamentals_combined.csv"  # Default
+combined_arg <- grep("--combined=", args, value = TRUE)
+if (length(combined_arg) > 0) {
+  combined_file <- sub("--combined=", "", combined_arg)
+}
+
+# Print file information
+cat("Using combined data file:", combined_file, "\n")
+
+# Execute main function
+main(auto_mode = auto_mode, refresh_top_companies_every = refresh_cycle, combined_file = combined_file)
