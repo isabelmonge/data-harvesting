@@ -78,7 +78,8 @@ Check your internet connection and make sure the target website hasn't changed i
 - Visualizes combined data from both sources
 - Provides filtering and analysis tools
 
-
+- Can be accessed here: https://rstockmarketdashboard.shinyapps.io/Stock_market_dashboard/
+  
 
 
 # API
@@ -182,15 +183,21 @@ fallback_alpha_vantage.R --auto --refresh=5 --combined=sp500_fundamentals_combin
 How It Works
 
 Smart Prioritization: The script prioritizes S&P 500 companies by market capitalization
+
 Refresh Cycles: Top companies are refreshed more frequently in a configurable cycle
+
 Key Management: When one API key hits its rate limit, the script automatically switches to the next one
+
 Progress Tracking: Each day's collection is logged and saved separately, while also updating a master dataset
+
 Error Handling: Failed requests are retried and logged, ensuring robust data collection
 
 #### Configuration Options
 
 --auto: Run in automatic mode
+
 --refresh=N: Set the refresh cycle for top companies (default: 5 days)
+
 --combined=FILE: Specify the combined output file path
 
 ### 3. Backup: manual Collection with VPN Rotation
