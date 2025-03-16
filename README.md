@@ -105,7 +105,7 @@ We've implemented three different approaches to efficiently collect data while r
 ### 1. Auto Tor IP Rotation Approach
 
 #### Overview
-The Auto Tor IP Rotation approach uses the Tor network to rotate IP addresses, allowing us to make multiple API requests without hitting rate limits. This method is resolves the issue that Alpha Vantage has a hard limit of 25 requests per day and per IP address/
+The Auto Tor IP Rotation approach uses the Tor network to rotate IP addresses, allowing us to make multiple API requests without hitting rate limits. This method is resolves the issue that Alpha Vantage has a hard limit of 25 requests per day and per IP address.
 
 #### Installation
 
@@ -152,36 +152,48 @@ The Auto Tor IP Rotation approach uses the Tor network to rotate IP addresses, a
 - **Connection errors**: Verify that Tor is running properly and the SOCKS proxy is accessible
 - **Slow response times**: This is normal when using Tor; consider adjusting request intervals
 
-### 2. API Key Rotation Approach
+### 2. Backup: batched requests approach
 
 #### Overview
-This approach cycles through multiple Alpha Vantage API keys to maximize the number of requests within a given timeframe.
+This approach intelligently cycles through multiple Alpha Vantage API keys to maximize data collection efficiency while respecting rate limits. It prioritizes companies by market cap and implements a smart refresh cycle to keep high-value data updated.
 
 #### Setup
-1. Create a `.env` file in the root directory with your Alpha Vantage API keys:
-   ```
-   ALPHA_VANTAGE_KEY_1=YOUR_KEY_1
-   ALPHA_VANTAGE_KEY_2=YOUR_KEY_2
-   # Add more keys as needed
-   ```
 
-2. Install required R packages:
-   ```r
-   install.packages(c("httr", "jsonlite", "dotenv", "rvest"))
-   ```
+Create a .env file in the root directory with your Alpha Vantage API keys:
+CopyALPHA_VANTAGE_KEY_1=YOUR_KEY_1
+ALPHA_VANTAGE_KEY_2=YOUR_KEY_2
+Add more keys as needed
+
+Install required R packages:
+``` R # Install packages
+install.packages(c("httr", "jsonlite", "dotenv", "rvest"))
+```
 
 #### Usage
 Run the API key rotation script:
-```bash
-Rscript API_key_rotation_manual.R
+``` bash 
+fallback_alpha_vantage.R
+```
+Or with options:
+``` bash
+fallback_alpha_vantage.R --auto --refresh=5 --combined=sp500_fundamentals_combined.csv
 ```
 
-#### How It Works
-1. The script loads multiple API keys from the `.env` file
-2. Requests are distributed across these keys to stay within rate limits
-3. Data is collected in batches, with progress saved after each batch
+How It Works
 
-### 3. Manual Collection with VPN Rotation
+Smart Prioritization: The script prioritizes S&P 500 companies by market capitalization
+Refresh Cycles: Top companies are refreshed more frequently in a configurable cycle
+Key Management: When one API key hits its rate limit, the script automatically switches to the next one
+Progress Tracking: Each day's collection is logged and saved separately, while also updating a master dataset
+Error Handling: Failed requests are retried and logged, ensuring robust data collection
+
+#### Configuration Options
+
+--auto: Run in automatic mode
+--refresh=N: Set the refresh cycle for top companies (default: 5 days)
+--combined=FILE: Specify the combined output file path
+
+### 3. Backup: manual Collection with VPN Rotation
 
 #### Overview
 This approach uses manual VPN rotation with multiple API keys to efficiently collect data while respecting Alpha Vantage's rate limits. The script intelligently manages API keys and tracks collection progress, prompting you to change your VPN location when needed.
@@ -247,10 +259,4 @@ This is a school project created to demonstrate data acquisition, storage and in
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-
-
-
-
-
 
