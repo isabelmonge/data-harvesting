@@ -80,7 +80,7 @@ Check your internet connection and make sure the target website hasn't changed i
 
 ## Project Information
 
-This is a school project created to demonstrate data harvesting and integration techniques using web scraping, API calls, and interactive visualization.
+This is a school project created to demonstrate data acquisition, storage and integration techniques using web scraping, API calls, and interactive visualization.
 
 ## License
 
