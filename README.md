@@ -96,6 +96,7 @@ This project combines multiple data collection strategies into a comprehensive f
 - **R/RStudio**: Version 4.0.0 or higher with required packages
 - **Tor Browser**: For IP rotation approach - [Download here](https://www.torproject.org/download/)
 - **Python 3.6+**: With the `requests` package installed
+- **.env file with API keys** API keys can be generated [here](https://www.alphavantage.co/support/#api-key) 
 
 ## API Data Collection Approaches
 
@@ -180,21 +181,47 @@ Rscript API_key_rotation_manual.R
 2. Requests are distributed across these keys to stay within rate limits
 3. Data is collected in batches, with progress saved after each batch
 
-### 3. Manual Collection with Scheduling
+### 3. Manual Collection with VPN Rotation
 
 #### Overview
-This approach strategically schedules API requests over time to collect data while respecting API limits.
+This approach uses manual VPN rotation with multiple API keys to efficiently collect data while respecting Alpha Vantage's rate limits. The script intelligently manages API keys and tracks collection progress, prompting you to change your VPN location when needed.
+
+#### Prerequisites
+
+Any free VPN service (we used PrivadoVPN)
+Multiple Alpha Vantage API keys in a .env file
 
 #### Usage
-```bash
-Rscript fallback_alpha_vantage.R
+
+First run: Execute the entire script and then run the main function:
+``` R # Load the script
+source("API_key_rotation_manual.R")
 ```
 
-#### Configuration Parameters
-You can customize the data collection process by modifying these parameters in the R script:
-- `batch_size`: Number of companies to collect in each batch (default: 50)
-- `interval_seconds`: Time between processing symbols (default: 75 seconds)
-- `max_retries`: Maximum retry attempts for failed symbols (default: 3)
+``` R # Start collection with 100 companies, 25 requests per IP
+main(sample_size = 100, requests_per_ip = 25)
+```
+
+When the VPN rotation message appears, change your VPN location
+``` R # To check where you left off:
+check_collection_progress()
+```
+
+``` R # To continue collection:
+main(start_index = 42)  # Replace with the "Next start index" value from previous step
+```
+
+#### How It Works
+
+The script intelligently selects uncollected S&P 500 companies. It manages multiple API keys to respect Alpha Vantage's rate limits (5 calls per minute, 25 calls per day)
+After a set number of requests per IP (requests_per_ip) - which is set to 25 by default - it prompts you to change your VPN location. Progress is automatically saved after each successful request, allowing you to resume at any time. The script maintains detailed logs of the collection process and generates both partial and complete datasets
+
+#### Configuration Options
+
+sample_size: Number of companies to collect (default: 100)
+requests_per_ip: Requests before VPN rotation (default: 25)
+start_index: Index to resume collection from
+data_file: Path to the output CSV file
 
 
 ## Troubleshooting
