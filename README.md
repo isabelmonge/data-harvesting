@@ -161,9 +161,13 @@ This approach intelligently cycles through multiple Alpha Vantage API keys to ma
 #### Setup
 
 Create a .env file in the root directory with your Alpha Vantage API keys:
-CopyALPHA_VANTAGE_KEY_1=YOUR_KEY_1
+ALPHA_VANTAGE_KEY_1=YOUR_KEY_1
 ALPHA_VANTAGE_KEY_2=YOUR_KEY_2
 Add more keys as needed
+
+``` R # Create .env
+writeLines("ALPHA_VANTAGE_KEY_1=YOUR_KEY_1", ".env")
+```
 
 Install required R packages:
 ``` R # Install packages
