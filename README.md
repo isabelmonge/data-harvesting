@@ -95,7 +95,7 @@ This project combines multiple data collection strategies into a comprehensive f
 ## Prerequisites
 
 - **R/RStudio**: Version 4.0.0 or higher with required packages
-- **Tor Browser**: For IP rotation approach - [Download here](https://www.torproject.org/download/)
+- **Tor Browser**: For IP rotation approach - [Download here](https://www.torproject.org/download/) (note: this webpage may not work on institutional wifi networks with high security controls)
 - **Python 3.6+**: With the `requests` package installed
 - **.env file with API keys** API keys can be generated [here](https://www.alphavantage.co/support/#api-key) 
 
