@@ -10,6 +10,8 @@ This project combines multiple data sources into a comprehensive data tool:
 2. **API Integration**: Fetches additional stock market data through API calls
 3. **Shiny App**: Combines and visualizes all data in an interactive dashboard
 
+The Shiny App can be accessed [here](https://rstockmarketdashboard.shinyapps.io/Stock_market_dashboard/).
+
 ## Web Scraper Instructions
 
 #### Step 1: Set up Docker container
