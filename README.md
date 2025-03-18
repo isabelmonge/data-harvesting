@@ -1,6 +1,6 @@
 # Stock Market Sentiment Analysis and Performance Tracking Using Scraping and APIs
 
-A Selenium-based web scraper using R to automate data collection, combined with API data integration and Shiny app visualization.
+A combined approach using a Selenium-based web scraper and API data integration, with Shiny app visualization for analysis.
 
 ## Overview
 
