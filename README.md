@@ -219,9 +219,13 @@ Rscript API_backup_1.R --auto --refresh=5 --combined=sp500_fundamentals_combined
 #### How It Works
 
 -Smart Prioritization: The script prioritizes S&P 500 companies by market capitalization
+
 -Refresh Cycles: Top companies are refreshed more frequently in a configurable cycle
+
 -Key Management: When one API key hits its rate limit, the script automatically switches to the next one
+
 -Progress Tracking: Each day's collection is logged and saved separately, while also updating the main dataset 
+
 -Error Handling: Failed requests are retried and logged, ensuring robust data collection
 
 #### Output Files:
@@ -229,9 +233,13 @@ Rscript API_backup_1.R --auto --refresh=5 --combined=sp500_fundamentals_combined
 The output from the main function will be:
 
 -sp500_fundamentals_combined.csv: combined file with all collected data
+
 -sp500_fundamentals_batch_[DATE].csv: daily batch results
+
 -alpha_vantage_progress_[DATE].rds: daily progress in RDS format
+
 -processed_symbols_[DATE].txt: list of successfully processed symbols for the day
+
 -alpha_vantage_progress_log.txt: detailed log of all operations
 
 Note that both the R markdown and the script have a test function and the main function is currently commented out. The output from the test function will be found in test_fundamentals.csv
