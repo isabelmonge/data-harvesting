@@ -1,22 +1,46 @@
+---
+title: "API Backup 1"
+author: "Marvin, Isabel"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    theme: flatly
+    highlight: tango
+    toc: true
+    toc_float: true
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Packages
+
+```{r packages, message=FALSE, warning=FALSE}
 library(httr)
 library(jsonlite)
 library(dotenv)
+```
 
-# Load environment variables for API keys
+## Configuration of API keys in environment
+
+```{r}
+# load environment variables for API keys
 dotenv::load_dot_env()
 
-# Function to get API keys from environment variables
+# function to get API keys from environment variables
 get_api_keys <- function() {
-  # Get all environment variables
+  # get all environment variables
   all_env <- Sys.getenv()
   
-  # Filter for Alpha Vantage keys
+  # filter for Alpha Vantage keys
   key_names <- grep("^ALPHA_VANTAGE_KEY_", names(all_env), value = TRUE)
   
-  # Extract the values
+  # extract the values
   api_keys <- sapply(key_names, function(key) Sys.getenv(key))
   
-  # Filter out empty keys
+  # filter out empty keys
   api_keys <- api_keys[api_keys != ""]
   
   if (length(api_keys) == 0) {
@@ -26,7 +50,11 @@ get_api_keys <- function() {
   cat("Found", length(api_keys), "API keys in environment variables\n")
   return(api_keys)
 }
+```
 
+## API data collection functions
+
+```{r}
 # Function to get company data via Alpha Vantage with automatic key rotation
 get_company_data <- function(symbol, api_keys, max_attempts = 3) {
   # Track used keys that hit their limit
@@ -115,7 +143,11 @@ get_company_data <- function(symbol, api_keys, max_attempts = 3) {
   
   return(NULL)
 }
+```
 
+## Data processing
+
+```{r}
 # Function to extract comprehensive metrics from the OVERVIEW endpoint
 extract_company_metrics <- function(data, symbol) {
   tryCatch({
@@ -177,7 +209,11 @@ extract_company_metrics <- function(data, symbol) {
     data.frame(Symbol = symbol, Name = NA, Sector = NA, Date_Collected = Sys.Date(), stringsAsFactors = FALSE)
   })
 }
+```
 
+## Symbol management
+
+```{r}
 # Function to get S&P 500 symbols
 get_sp500_symbols <- function() {
   tryCatch({
@@ -307,6 +343,22 @@ prioritize_by_market_cap <- function(symbols, refresh_top_n_every = 5, combined_
   return(symbols[1:min(25, length(symbols))])
 }
 
+# Function to determine the next cycle day automatically
+get_next_cycle_day <- function(refresh_cycle = 5) {
+  cycle_file <- "cycle_day.txt"
+  if (file.exists(cycle_file)) {
+    cycle_day <- as.integer(readLines(cycle_file))
+    next_cycle_day <- cycle_day %% refresh_cycle + 1
+  } else {
+    next_cycle_day <- 1
+  }
+  return(next_cycle_day)
+}
+```
+
+## Data collection pipeline
+
+```{r}
 # Function to collect data with forced refresh - ALWAYS gets new data for 25 symbols per day
 collect_data_force_refresh <- function(symbols, api_keys, max_daily_requests = 25, 
                                        request_delay = 15, max_retries = 3,
@@ -482,19 +534,11 @@ collect_data_force_refresh <- function(symbols, api_keys, max_daily_requests = 2
   
   return(successful_symbols)
 }
+```
 
-# Function to determine the next cycle day automatically
-get_next_cycle_day <- function(refresh_cycle = 5) {
-  cycle_file <- "cycle_day.txt"
-  if (file.exists(cycle_file)) {
-    cycle_day <- as.integer(readLines(cycle_file))
-    next_cycle_day <- cycle_day %% refresh_cycle + 1
-  } else {
-    next_cycle_day <- 1
-  }
-  return(next_cycle_day)
-}
+## Main execution
 
+```{r}
 # Main execution function
 main <- function(auto_mode = FALSE, refresh_top_companies_every = 5, combined_file = "sp500_fundamentals_combined.csv") {
   # Get API keys
@@ -546,9 +590,14 @@ if (length(combined_arg) > 0) {
 
 # Print file information
 cat("Using combined data file:", combined_file, "\n")
+```
 
-# execute main function
-# main(auto_mode = auto_mode, refresh_top_companies_every = refresh_cycle, combined_file = combined_file)
+## Running: main and test
+
+```{r}
+# execute main function with default parameters
+                                ### UNCOMMENT ###
+# main(auto_mode = FALSE, refresh_top_companies_every = 5, combined_file = "sp500_fundamentals_combined.csv")
 
 # test function that only processes a few symbols
 test_run <- function() {
@@ -571,5 +620,11 @@ test_run <- function() {
   )
 }
 
-# run the test function instead
+# Run the test function
 test_run()
+
+# alternative execution with custom parameters:
+# main(auto_mode = TRUE, refresh_top_companies_every = 3, combined_file = "custom_fundamentals.csv")
+```
+
+

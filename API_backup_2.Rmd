@@ -1,23 +1,54 @@
+---
+title: "API Backup 2"
+author: "Marvin, Isabel"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    theme: flatly
+    highlight: tango
+    toc: true
+    toc_float: true
+    code_folding: show
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Introduction
+
+This R Markdown document implements a data collection pipeline for S&P 500 company fundamentals using the Alpha Vantage API. This version includes advanced features for API key management, manual IP/VPN rotation to overcome API limits, and tracking of uncollected tickers.
+
+## Packages
+
+```{r packages, message=FALSE, warning=FALSE}
 library(httr)
 library(jsonlite)
 library(dplyr)
 library(dotenv)
+```
 
-# Load environment variables for API keys
+
+## 2. Setup & Configuration
+
+```{r config}
+# L=load environment variables for API keys
 dotenv::load_dot_env()
 
-# Function to get API keys from environment variables
+# function to get API keys from environment variables
 get_api_keys <- function() {
-  # Get all environment variables
+  # get all environment variables
   all_env <- Sys.getenv()
   
-  # Filter for Alpha Vantage keys
+  # filter for Alpha Vantage keys
   key_names <- grep("^ALPHA_VANTAGE_KEY_", names(all_env), value = TRUE)
   
-  # Extract the values
+  # extract the values
   api_keys <- sapply(key_names, function(key) Sys.getenv(key))
   
-  # Filter out empty keys
+  # filter out empty keys
   api_keys <- api_keys[api_keys != ""]
   
   if (length(api_keys) == 0) {
@@ -27,7 +58,11 @@ get_api_keys <- function() {
   cat("Found", length(api_keys), "API keys in environment variables\n")
   return(api_keys)
 }
+```
 
+## API key management
+
+```{r }
 # Improved key manager function
 create_key_manager <- function(api_keys) {
   key_status <- data.frame(
@@ -82,7 +117,11 @@ create_key_manager <- function(api_keys) {
     return(available_key$key)
   }
 }
+```
 
+## Data processing
+
+```{r}
 # Function to extract comprehensive metrics from the OVERVIEW endpoint - consistent with other scripts
 extract_company_metrics <- function(data, symbol) {
   tryCatch({
@@ -144,7 +183,11 @@ extract_company_metrics <- function(data, symbol) {
     data.frame(Symbol = symbol, Name = NA, Sector = NA, Date_Collected = Sys.Date(), stringsAsFactors = FALSE)
   })
 }
+```
 
+## API Data collection function
+
+```{r}
 # Function to get company data - replaced the simpler version with one matching the overall metrics extraction
 get_company_data <- function(symbol, get_key, max_attempts = 3) {
   Sys.sleep(15)  # Initial sleep to respect rate limits
@@ -217,7 +260,11 @@ get_company_data <- function(symbol, get_key, max_attempts = 3) {
   cat("No valid data received for", symbol, "after", max_attempts, "attempts\n")
   return(NULL)
 }
+```
 
+## Symbol management function
+
+```{r}
 # Function to get S&P 500 symbols - consistent with other scripts
 get_sp500_symbols <- function() {
   tryCatch({
@@ -258,6 +305,64 @@ get_sp500_symbols <- function() {
   })
 }
 
+# Function to intelligently select uncollected tickers
+select_uncollected_tickers <- function(max_tickers = 100, data_file = "sp500_fundamentals_manual_approach.csv") {
+  # Get all S&P 500 symbols
+  all_sp500 <- get_sp500_symbols()
+  cat("Retrieved", length(all_sp500), "S&P 500 symbols\n")
+  
+  # Check if we already have data for some companies
+  if (file.exists(data_file)) {
+    cat("Found existing data file:", data_file, "\n")
+    existing_data <- read.csv(data_file, stringsAsFactors = FALSE)
+    
+    # Extract the symbols we already have
+    collected_symbols <- unique(existing_data$Symbol)
+    cat("Already collected data for", length(collected_symbols), "companies\n")
+    
+    # Find symbols that haven't been collected yet
+    uncollected_symbols <- all_sp500[!all_sp500 %in% collected_symbols]
+    cat("Found", length(uncollected_symbols), "uncollected companies\n")
+    
+    if (length(uncollected_symbols) == 0) {
+      cat("You've already collected data for all S&P 500 companies!\n")
+      cat("Consider updating older data if needed.\n")
+      return(NULL)
+    }
+    
+    # If we have fewer uncollected than max_tickers, return all of them
+    if (length(uncollected_symbols) <= max_tickers) {
+      cat("Returning all", length(uncollected_symbols), "uncollected symbols\n")
+      return(uncollected_symbols)
+    }
+    
+    # Otherwise, sample from the uncollected symbols
+    cat("Sampling", max_tickers, "from", length(uncollected_symbols), "uncollected symbols\n")
+    set.seed(as.numeric(Sys.time())) # Random seed based on current time
+    selected_symbols <- sample(uncollected_symbols, max_tickers)
+  } else {
+    cat("No existing data file found. Sampling from all S&P 500 companies.\n")
+    # Sample from all symbols if no existing data
+    set.seed(as.numeric(Sys.time()))
+    selected_symbols <- sample(all_sp500, min(max_tickers, length(all_sp500)))
+  }
+  
+  # Save the selected symbols
+  symbols_df <- data.frame(
+    symbol = selected_symbols,
+    selection_date = Sys.Date(),
+    stringsAsFactors = FALSE
+  )
+  write.csv(symbols_df, "selected_uncollected_symbols.csv", row.names = FALSE)
+  cat("Saved selected symbols to selected_uncollected_symbols.csv\n")
+  
+  return(selected_symbols)
+}
+```
+
+## Data collection
+
+```{r}
 # Function to collect data using multiple keys with manual VPN rotation
 collect_data_with_manual_ip_rotation <- function(symbols, start_index = 1, requests_per_ip = 25) {
   # Load API keys from .env file
@@ -410,7 +515,11 @@ collect_data_with_manual_ip_rotation <- function(symbols, start_index = 1, reque
   # Return only the restart index (NULL) to avoid printing large results
   return(NULL)  # No restart needed, collection complete
 }
+```
 
+## Progress tracking
+
+```{r}
 # Helper function to check collection progress
 check_collection_progress <- function() {
   progress_file <- "manual_ip_rotation_progress.rds"
@@ -445,61 +554,11 @@ check_collection_progress <- function() {
     cat("main(start_index = 1)\n")
   }
 }
+```
 
-# Function to intelligently select uncollected tickers
-select_uncollected_tickers <- function(max_tickers = 100, data_file = "sp500_fundamentals_manual_approach.csv") {
-  # Get all S&P 500 symbols
-  all_sp500 <- get_sp500_symbols()
-  cat("Retrieved", length(all_sp500), "S&P 500 symbols\n")
-  
-  # Check if we already have data for some companies
-  if (file.exists(data_file)) {
-    cat("Found existing data file:", data_file, "\n")
-    existing_data <- read.csv(data_file, stringsAsFactors = FALSE)
-    
-    # Extract the symbols we already have
-    collected_symbols <- unique(existing_data$Symbol)
-    cat("Already collected data for", length(collected_symbols), "companies\n")
-    
-    # Find symbols that haven't been collected yet
-    uncollected_symbols <- all_sp500[!all_sp500 %in% collected_symbols]
-    cat("Found", length(uncollected_symbols), "uncollected companies\n")
-    
-    if (length(uncollected_symbols) == 0) {
-      cat("You've already collected data for all S&P 500 companies!\n")
-      cat("Consider updating older data if needed.\n")
-      return(NULL)
-    }
-    
-    # If we have fewer uncollected than max_tickers, return all of them
-    if (length(uncollected_symbols) <= max_tickers) {
-      cat("Returning all", length(uncollected_symbols), "uncollected symbols\n")
-      return(uncollected_symbols)
-    }
-    
-    # Otherwise, sample from the uncollected symbols
-    cat("Sampling", max_tickers, "from", length(uncollected_symbols), "uncollected symbols\n")
-    set.seed(as.numeric(Sys.time())) # Random seed based on current time
-    selected_symbols <- sample(uncollected_symbols, max_tickers)
-  } else {
-    cat("No existing data file found. Sampling from all S&P 500 companies.\n")
-    # Sample from all symbols if no existing data
-    set.seed(as.numeric(Sys.time()))
-    selected_symbols <- sample(all_sp500, min(max_tickers, length(all_sp500)))
-  }
-  
-  # Save the selected symbols
-  symbols_df <- data.frame(
-    symbol = selected_symbols,
-    selection_date = Sys.Date(),
-    stringsAsFactors = FALSE
-  )
-  write.csv(symbols_df, "selected_uncollected_symbols.csv", row.names = FALSE)
-  cat("Saved selected symbols to selected_uncollected_symbols.csv\n")
-  
-  return(selected_symbols)
-}
+## Execution
 
+```{r}
 # Main execution function
 main <- function(max_tickers = 100, requests_per_ip = 25, start_index = 1, 
                  data_file = "sp500_fundamentals_manual_approach.csv", sample_size = NULL) {
@@ -551,18 +610,25 @@ main <- function(max_tickers = 100, requests_per_ip = 25, start_index = 1,
   # Don't return anything to avoid printing large data structures
   invisible(next_index)
 }
+```
 
-# Example usage:
-# 1. First run: main(sample_size = 100, requests_per_ip = 25)
-# 2. After changing VPN: check_collection_progress()
-# 3. Continue: main(start_index = [value from check_collection_progress])
+## Running
 
-# test run (same as in Rmd)
-test_run <- function() {
-  cat("Running test with 5 companies and 5 requests per IP\n")
-  main(max_tickers = 5, requests_per_ip = 5, start_index = 1)
-}
+```{r}
+# start a new collection of 50 companies, allowing 20 API calls per IP address
+                            ### UNCOMMENT ###
+# main(max_tickers = 50, requests_per_ip = 20, start_index = 1)
 
-# Run the test function
-test_run()
+# check current progress if you need to see where you left off
+# check_collection_progress()
+
+# continue collection from where you left off (after changing your VPN/IP)
+# main(start_index = 35)  # Replace with the value from check_collection_progress
+
+# test run with just 5 companies and only 5 requests per IP
+main(max_tickers = 5, requests_per_ip = 5, start_index = 1)
+
+```
+
+
 

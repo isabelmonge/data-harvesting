@@ -1,18 +1,61 @@
+---
+title: "API main approach"
+author: "Marvin, Isabel"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    theme: flatly
+    highlight: tango
+    toc: true
+    toc_float: true
+    code_folding: show
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+[Alpha Vantage’s API](https://www.alphavantage.co) offers access to a wide array of financial data, among other things financial metrics for the 500 companies of the S&P 500 that we are interested in. We have developed three approaches to access the data. They all revolve around the central problem of circumventing Alpha Vantage API’s request limits. Alpha Vantage has a hard limit of 25 requests per API key per day. Moreover, Alpha Vantage tracks the user’s IP address and sets the same hard limit. Hence, a simple API key rotation would not work, as this would limit us to only 25 downloads per day. However, we developed a framework to combine a simple API key rotation with regular changes of the IP address, using [Auto Tor](https://github.com/FDX100/Auto_Tor_IP_changer). This is our main approach, which enabled us to get the data for the 500 companies in a fast and efficient way. 
+
+## Auto Tor IP Changer View
+
+Below is how the Auto Tor terminal looks like when running:
+
+![Auto Tor IP Changer Terminal](auto_tor_screenshot.png)
+
+
+This tool changes one's IP address automatically by restarting the Tor Browser 
+at regular specified intervals. For this code, we recommend 75 seconds.
+
+## Packages
+
+```{r message=FALSE, warning=FALSE}
 library(httr)
 library(jsonlite)
 library(curl)
 library(dotenv)
+```
 
-# Function to check current IP
+## IP connection function
+
+We start with this function which verifies that we have a proper Tor connection 
+and retrieves the current IP address. It is essential for confirming that we have
+a working anonymous connection before making API requests.
+
+```{r}
+# function to check current IP
 check_current_ip <- function(max_attempts = 3) {
   for (attempt in 1:max_attempts) {
     tryCatch({
-      # Configure to use Tor SOCKS proxy
+      # configure to use Tor SOCKS proxy
       h <- new_handle()
       handle_setopt(h, proxy = "socks5h://127.0.0.1:9150")
       handle_setopt(h, timeout = 30)
       
-      # Get IP through Tor
+      # gt IP through Tor
       cat("Checking IP (attempt", attempt, ")...\n")
       response <- curl_fetch_memory("https://api.ipify.org", h)
       ip_address <- rawToChar(response$content)
@@ -29,16 +72,25 @@ check_current_ip <- function(max_attempts = 3) {
   }
   return(NULL)
 }
+```
 
-# Function to get company data via Alpha Vantage
+## Data retrieval function
+
+This function connects to Alpha Vantage's API via Tor and then tries to retrieve
+financial data for a specific company. The function includes some error handling
+and logging for API rate limits and connection issues. We add a customizable argument
+such that the user can choose the number of retry attempts.
+
+```{r}
+# function to get company data via Alpha Vantage
 get_company_data <- function(symbol, api_key, max_attempts = 3) {
   for (attempt in 1:max_attempts) {
-    # Set up the Tor proxy with curl package
+    # set up the Tor proxy with curl package
     h <- new_handle()
     handle_setopt(h, proxy = "socks5h://127.0.0.1:9150")
     handle_setopt(h, timeout = 30)
     
-    # Build the Alpha Vantage API URL
+    # build the Alpha Vantage API URL
     url <- paste0(
       "https://www.alphavantage.co/query?function=OVERVIEW&symbol=", 
       symbol, 
@@ -48,7 +100,7 @@ get_company_data <- function(symbol, api_key, max_attempts = 3) {
     
     cat("Fetching data for", symbol, "(attempt", attempt, ")...\n")
     
-    # Make the request through Tor
+    # make the request through Tor
     tryCatch({
       response <- curl_fetch_memory(url, h)
       
@@ -89,18 +141,29 @@ get_company_data <- function(symbol, api_key, max_attempts = 3) {
   }
   return(NULL)
 }
+```
 
-# Function to extract comprehensive metrics from the OVERVIEW endpoint
+## Data processing function
+
+Here, we transform the JSON responses from Alpha Vantage into nicer, structured 
+dataframes. We only use one API endpoint because each endpoint would require us
+to do a separate call, costing us one additional request. And the overview endpoint
+gives us most of the relevant information about a company's financial health.
+The extract_company_metrics function parses financial data into meaningful categories.
+It also handles missing values.
+
+```{r}
+# function to extract comprehensive metrics from the OVERVIEW endpoint
 extract_company_metrics <- function(data, symbol) {
   tryCatch({
     metrics <- data.frame(
-      # Basic Information
+      # basic Information
       Symbol = symbol,
       Name = ifelse(is.null(data$Name), NA, data$Name),
       Sector = ifelse(is.null(data$Sector), NA, data$Sector),
       Industry = ifelse(is.null(data$Industry), NA, data$Industry),
       
-      # Valuation Metrics
+      # valuation Metrics
       PE_Ratio = ifelse(is.null(data$PERatio), NA, as.numeric(data$PERatio)),
       PEG_Ratio = ifelse(is.null(data$PEGRatio), NA, as.numeric(data$PEGRatio)),
       Price_to_Book = ifelse(is.null(data$PriceToBookRatio), NA, as.numeric(data$PriceToBookRatio)),
@@ -108,48 +171,47 @@ extract_company_metrics <- function(data, symbol) {
       EV_to_EBITDA = ifelse(is.null(data$EVToEBITDA), NA, as.numeric(data$EVToEBITDA)),
       EV_to_Revenue = ifelse(is.null(data$EVToRevenue), NA, as.numeric(data$EVToRevenue)),
       
-      # Profitability 
+      # profitability measures
       Profit_Margin = ifelse(is.null(data$ProfitMargin), NA, as.numeric(data$ProfitMargin)),
       Operating_Margin = ifelse(is.null(data$OperatingMarginTTM), NA, as.numeric(data$OperatingMarginTTM)),
       Return_on_Assets = ifelse(is.null(data$ReturnOnAssetsTTM), NA, as.numeric(data$ReturnOnAssetsTTM)),
       Return_on_Equity = ifelse(is.null(data$ReturnOnEquityTTM), NA, as.numeric(data$ReturnOnEquityTTM)),
       
-      # Growth
+      # growth indicators
       Revenue_Growth_YOY = ifelse(is.null(data$QuarterlyRevenueGrowthYOY), NA, as.numeric(data$QuarterlyRevenueGrowthYOY)),
       EPS_Growth_YOY = ifelse(is.null(data$QuarterlyEarningsGrowthYOY), NA, as.numeric(data$QuarterlyEarningsGrowthYOY)),
       
-      # Financial Health
+      # financial Health
       Current_Ratio = ifelse(is.null(data$CurrentRatio), NA, as.numeric(data$CurrentRatio)),
       Debt_to_Equity = ifelse(is.null(data$DebtToEquityRatio), NA, as.numeric(data$DebtToEquityRatio)),
       Interest_Coverage = ifelse(is.null(data$InterestCoverageRatio), NA, as.numeric(data$InterestCoverageRatio)),
       
-      # Dividend & Shareholder Returns
+      # dividend & Shareholder Returns
       Dividend_Yield = ifelse(is.null(data$DividendYield), NA, as.numeric(data$DividendYield)),
       Dividend_Per_Share = ifelse(is.null(data$DividendPerShare), NA, as.numeric(data$DividendPerShare)),
       Dividend_Payout_Ratio = ifelse(is.null(data$PayoutRatio), NA, as.numeric(data$PayoutRatio)),
       
-      # Market & Technical
+      # market & technical stuff
       Beta = ifelse(is.null(data$Beta), NA, as.numeric(data$Beta)),
       Fifty_Two_Week_High = ifelse(is.null(data$`52WeekHigh`), NA, as.numeric(data$`52WeekHigh`)),
       Fifty_Two_Week_Low = ifelse(is.null(data$`52WeekLow`), NA, as.numeric(data$`52WeekLow`)),
       
-      # Additional Size/Scale Metrics
+      # additional size/scale Metrics
       Market_Cap = ifelse(is.null(data$MarketCapitalization), NA, as.numeric(data$MarketCapitalization)),
       EBITDA = ifelse(is.null(data$EBITDA), NA, as.numeric(data$EBITDA)),
       Revenue_TTM = ifelse(is.null(data$RevenueTTM), NA, as.numeric(data$RevenueTTM)),
       
-      stringsAsFactors = FALSE
-    )
+      stringsAsFactors = FALSE)
     
     return(metrics)
   }, error = function(e) {
     cat("Error processing data for", symbol, ":", e$message, "\n")
-    # Return minimal data if error occurs
+    # return minimal data if error occurs
     data.frame(Symbol = symbol, Name = NA, Sector = NA, stringsAsFactors = FALSE)
   })
 }
 
-# Function to get S&P 500 symbols
+# some simple scraping: function to get S&P 500 symbols
 get_sp500_symbols <- function() {
   tryCatch({
     # Using Wikipedia as source
@@ -163,15 +225,15 @@ get_sp500_symbols <- function() {
       library(rvest)
     }
     
-    # Scrape the table
+    # scrape the table
     page <- read_html(url)
     tables <- html_nodes(page, "table.wikitable")
     sp500_table <- html_table(tables[1], fill = TRUE)[[1]]
     
-    # Extract symbols
+    # extract symbols
     symbols <- sp500_table$Symbol
     
-    # Clean symbols (remove .* if present)
+    # clean symbols (remove .* if present)
     symbols <- gsub("\\.", "-", symbols)
     
     cat("Retrieved", length(symbols), "S&P 500 symbols\n")
@@ -180,7 +242,7 @@ get_sp500_symbols <- function() {
     cat("Error retrieving S&P 500 symbols:", e$message, "\n")
     cat("Using backup S&P 500 symbols list\n")
     
-    # Backup list of major S&P 500 components (top 30 by weight)
+    # backup list of major S&P 500 components (top 30 by weight)
     backup_symbols <- c("AAPL", "MSFT", "AMZN", "NVDA", "GOOGL", "META", "GOOG", "BRK-B", 
                         "UNH", "LLY", "JPM", "XOM", "V", "AVGO", "PG", "MA", "HD", "COST", 
                         "MRK", "ABBV", "CVX", "PEP", "KO", "ADBE", "WMT", "CRM", "BAC", 
@@ -188,15 +250,28 @@ get_sp500_symbols <- function() {
     return(backup_symbols)
   })
 }
+```
 
-# Modified collection function that uses CSV instead of RDS for progress tracking
+## Main data collection function
+
+This is our core function that organises the entire data collection process.
+
+It coordinates everything: checking Tor connections, rotating through API keys to
+avoid hitting limits, fetching company data, and saving our progress.
+When something goes wrong (like a failed request), it adds the company to a retry 
+queue and uses a cool exponential backoff - waiting longer between each retry attempt. 
+We also added a functionality that saves the progress after each successful company
+to batch_progress_temp.csv, so we don't lose data if anything goes wrong.
+
+```{r}
+# modified collection function that uses CSV instead of RDS for progress tracking
 collect_data_tor <- function(symbols, api_keys, interval_seconds = 75, 
                              stabilization_seconds = 25, max_retries = 3,
                              requests_per_key = 25) {
   cat("Starting data collection using Tor rotation and API key rotation\n")
   cat("Using", length(api_keys), "API keys with", requests_per_key, "requests per key\n")
   
-  # Check if Tor is running
+  # check if Tor is running
   cat("Verifying Tor connection...\n")
   initial_ip <- check_current_ip()
   if (is.null(initial_ip)) {
@@ -206,7 +281,7 @@ collect_data_tor <- function(symbols, api_keys, interval_seconds = 75,
   
   cat("Tor connection verified. Initial IP:", initial_ip, "\n")
   
-  # Initialize results dataframe and retry queue
+  # initialize results dataframe and retry queue
   results_df <- data.frame()
   retry_queue <- data.frame(
     symbol = character(0),
@@ -220,7 +295,7 @@ collect_data_tor <- function(symbols, api_keys, interval_seconds = 75,
   current_key <- api_keys[current_key_index]
   requests_with_current_key <- 0
   
-  # Process each symbol
+  # process each symbol
   for (i in seq_along(symbols)) {
     symbol <- symbols[i]
     cat("\n==== Processing", i, "of", length(symbols), ":", symbol, "====\n")
@@ -233,13 +308,13 @@ collect_data_tor <- function(symbols, api_keys, interval_seconds = 75,
       requests_with_current_key <- 0
     }
     
-    # Add stabilization period before each request to ensure Tor connection is ready
-    if (i > 1) {  # Skip first symbol as we already verified connection
+    # add stabilization period before each request to ensure Tor connection is ready
+    if (i > 1) {  # skip first symbol as we already verified connection
       cat("Waiting", stabilization_seconds, "seconds for Tor connection to stabilize...\n")
       Sys.sleep(stabilization_seconds)
     }
     
-    # Check current IP with multiple retries
+    # check current IP with multiple retries
     current_ip <- NULL
     for (retry in 1:5) {  # Up to 5 retries for IP check
       current_ip <- check_current_ip(max_attempts = 1)  # Single attempt per retry
@@ -257,26 +332,26 @@ collect_data_tor <- function(symbols, api_keys, interval_seconds = 75,
         last_error = "Could not verify Tor IP",
         stringsAsFactors = FALSE
       ))
-      # Wait the standard interval before continuing
+      # wait the standard interval before continuing
       if (i < length(symbols)) {
         cat("Waiting", interval_seconds, "seconds before next symbol...\n")
         Sys.sleep(interval_seconds)
       }
-      next  # Skip this symbol for now
+      next  # skip this symbol for now
     }
     
     cat("Using IP:", current_ip, "\n")
     
-    # Get data
+    # get data
     cat("Using API key:", substr(current_key, 1, 5), "...\n")
     data <- get_company_data(symbol, current_key)
     requests_with_current_key <- requests_with_current_key + 1
     
     if (!is.null(data)) {
-      # Extract metrics and add to results dataframe
+      # extract metrics and add to results dataframe
       symbol_metrics <- extract_company_metrics(data, symbol)
       
-      # Check if the results_df is empty
+      # check if the results_df is empty
       if (nrow(results_df) == 0) {
         results_df <- symbol_metrics
       } else {
@@ -286,7 +361,7 @@ collect_data_tor <- function(symbols, api_keys, interval_seconds = 75,
       cat("Data for", symbol, "collected successfully\n")
       cat("API key", current_key_index, "has been used for", requests_with_current_key, "requests\n")
       
-      # Save progress to a temporary batch file after each successful request
+      # save progress to a temporary batch file after each successful request
       batch_temp_file <- paste0("batch_progress_temp.csv")
       write.csv(results_df, batch_temp_file, row.names = FALSE)
       cat("Progress saved to temporary file\n")
@@ -300,31 +375,31 @@ collect_data_tor <- function(symbols, api_keys, interval_seconds = 75,
       ))
     }
     
-    # Wait for the next IP rotation from the aut script
+    # wait for the next IP rotation from the aut script
     if (i < length(symbols)) {
       cat("Waiting", interval_seconds, "seconds for next IP rotation...\n")
       Sys.sleep(interval_seconds)
     }
   }
   
-  # Process retry queue with exponential backoff
+  # process retry queue with exponential backoff
   if (nrow(retry_queue) > 0) {
     cat("\n\n==== Processing retry queue ====\n")
     cat("There are", nrow(retry_queue), "symbols in the retry queue\n")
     
-    # Wait longer before starting retries to ensure Tor is stable
+    # wait longer before starting retries to ensure Tor is stable
     retry_wait <- 180  # 3 minutes initial wait
     cat("Waiting", retry_wait, "seconds before starting retries...\n")
     Sys.sleep(retry_wait)
     
-    # Continue retrying until queue is empty or max retries reached
+    # continue retrying until queue is empty or max retries reached
     while (nrow(retry_queue) > 0) {
-      # Get first symbol from queue
+      # get first symbol from queue
       current <- retry_queue[1, ]
       symbol <- current$symbol
       attempts <- current$attempts + 1
       
-      # Check if we've reached max retries
+      # check if we've reached max retries
       if (attempts > max_retries) {
         cat("\nSymbol", symbol, "has reached maximum retry attempts (", max_retries, ")\n")
         cat("Giving up on this symbol\n")
@@ -341,13 +416,13 @@ collect_data_tor <- function(symbols, api_keys, interval_seconds = 75,
         requests_with_current_key <- 0
       }
       
-      # Calculate exponential backoff
+      # calculate exponential backoff
       backoff_time <- 30 * (2 ^ (attempts - 1))  # 30, 60, 120 seconds...
       
       cat("\n==== Retry attempt", attempts, "for", symbol, "====\n")
       cat("Previous error:", current$last_error, "\n")
       
-      # Verify Tor connection
+      # verify Tor connection
       cat("Verifying Tor connection for retry...\n")
       current_ip <- check_current_ip()
       
@@ -355,26 +430,26 @@ collect_data_tor <- function(symbols, api_keys, interval_seconds = 75,
         cat("WARNING: Could not verify Tor IP for retry. Waiting", backoff_time, "seconds...\n")
         Sys.sleep(backoff_time)
         
-        # Update retry queue
+        # update retry queue
         retry_queue$attempts[1] <- attempts
         retry_queue$last_error[1] <- "Could not verify Tor IP on retry"
-        # Move to the end of the queue
+        # move to the end of the queue
         retry_queue <- rbind(retry_queue[-1, ], retry_queue[1, ])
         next
       }
       
       cat("Using IP for retry:", current_ip, "\n")
       
-      # Get data
+      # get data
       cat("Using API key:", substr(current_key, 1, 5), "...\n")
       data <- get_company_data(symbol, current_key)
       requests_with_current_key <- requests_with_current_key + 1
       
       if (!is.null(data)) {
-        # Extract metrics and add to results dataframe
+        # extract metrics and add to results dataframe
         symbol_metrics <- extract_company_metrics(data, symbol)
         
-        # Add to results dataframe
+        # add to results dataframe
         if (nrow(results_df) == 0) {
           results_df <- symbol_metrics
         } else {
@@ -384,21 +459,21 @@ collect_data_tor <- function(symbols, api_keys, interval_seconds = 75,
         cat("Data for", symbol, "collected successfully on retry\n")
         cat("API key", current_key_index, "has been used for", requests_with_current_key, "requests\n")
         
-        # Save progress to a temporary batch file
+        # save progress to a temporary batch file
         batch_temp_file <- paste0("batch_progress_temp.csv")
         write.csv(results_df, batch_temp_file, row.names = FALSE)
         cat("Progress saved to temporary file\n")
         
-        # Remove from retry queue
+        # remove from retry queue
         retry_queue <- retry_queue[-1, ]
       } else {
         cat("Retry failed for", symbol, ". Waiting", backoff_time, "seconds...\n")
         Sys.sleep(backoff_time)
         
-        # Update retry queue
+        # update retry queue
         retry_queue$attempts[1] <- attempts
         retry_queue$last_error[1] <- paste("Retry", attempts, "failed")
-        # Move to the end of the queue
+        # move to the end of the queue
         retry_queue <- rbind(retry_queue[-1, ], retry_queue[1, ])
       }
     }
@@ -407,25 +482,32 @@ collect_data_tor <- function(symbols, api_keys, interval_seconds = 75,
   cat("\n==== Data collection complete ====\n")
   cat("Successfully collected data for", nrow(results_df), "out of", length(symbols), "symbols\n")
   
-  # Return results
+  # return results
   return(results_df)
 }
+```
 
-# Load environment variables
+## API key management
+
+This section loads our manually collected API keys from the environment to access
+the Alpha Vantage API.
+
+```{r}
+# load environment variables
 dotenv::load_dot_env()
 
-# Get API keys from environment
+# get API keys from environment
 get_api_keys <- function() {
-  # Get all environment variables
+  # get all environment variables
   all_env <- Sys.getenv()
   
-  # Filter for Alpha Vantage keys
+  # filter for Alpha Vantage keys
   key_names <- grep("^ALPHA_VANTAGE_KEY_", names(all_env), value = TRUE)
   
-  # Extract the values
+  # extract the values
   api_keys <- sapply(key_names, function(key) Sys.getenv(key))
   
-  # Filter out empty keys
+  # filter out empty keys
   api_keys <- api_keys[api_keys != ""]
   
   if (length(api_keys) == 0) {
@@ -436,10 +518,18 @@ get_api_keys <- function() {
   return(api_keys)
 }
 
-# Get API keys from environment
+# get API keys from environment
 api_keys <- get_api_keys()
+```
 
-# Load existing progress from CSV
+## Execute the data collection
+
+Finally, we execute the data collection process and track progress.
+This chunk manages previously collected data, randomly selects new companies to 
+process, and updates the combined dataset called sp500_fundamentals_combined.csv.
+
+```{r}
+# load existing progress from CSV
 if (file.exists("sp500_fundamentals_combined.csv")) {
   combined_df <- read.csv("sp500_fundamentals_combined.csv", stringsAsFactors = FALSE)
   already_collected <- combined_df$Symbol
@@ -450,24 +540,24 @@ if (file.exists("sp500_fundamentals_combined.csv")) {
   already_collected <- c()
 }
 
-# Get full S&P 500 list
+# get full S&P 500 list
 all_sp500 <- get_sp500_symbols()
 
-# Remove companies you've already collected
+# Remove companies already collected
 remaining_symbols <- all_sp500[!all_sp500 %in% already_collected]
 cat("Remaining companies to collect:", length(remaining_symbols), "\n")
 
-# Define how many companies to collect in this run
-companies_to_collect <- 2  # Adjust this number as needed
+# HERE: define how many companies to collect in this run
+companies_to_collect <- 2  # adjust this number as needed for testing
 
-# Randomly sample from remaining symbols
+# randomly sample from remaining symbols
 if (length(remaining_symbols) > 0) {
-  # If we have fewer remaining symbols than requested, collect all of them
+  # ff we have fewer remaining symbols than requested, collect all of them
   if (length(remaining_symbols) <= companies_to_collect) {
     batch_symbols <- remaining_symbols
     cat("Collecting all remaining", length(batch_symbols), "symbols:\n")
   } else {
-    # Randomly sample the requested number
+    # randomly sample the requested number
     set.seed(Sys.time()) # Use current time as seed for true randomness
     batch_symbols <- sample(remaining_symbols, companies_to_collect)
     cat("Collecting", companies_to_collect, "randomly selected symbols:\n")
@@ -475,40 +565,39 @@ if (length(remaining_symbols) > 0) {
   
   cat(paste(batch_symbols, collapse=", "), "\n\n")
   
-  # Collect data for this batch
+  # collect data for this batch
   batch_results <- collect_data_tor(
     symbols = batch_symbols,
     api_keys = api_keys,
     interval_seconds = 75,
     stabilization_seconds = 25,
     max_retries = 3,
-    requests_per_key = 25
-  )
+    requests_per_key = 25)
   
-  # Process and save the results for this batch
+  # process and save the results for this batch
   if (!is.null(batch_results) && nrow(batch_results) > 0) {
-    # Generate a timestamp for the batch file
+    # generate a timestamp for the batch file
     timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
     batch_csv_name <- paste0("sp500_fundamentals_batch_", timestamp, ".csv")
     
-    # Save this batch as its own CSV
+    # save this batch as its own CSV
     write.csv(batch_results, batch_csv_name, row.names = FALSE)
     cat("Batch results saved to", batch_csv_name, "\n")
     
-    # If we have previous results, combine them
+    # if we have previous results, combine them
     if (nrow(combined_df) > 0) {
-      # Remove any duplicates (in case of overlaps)
+      # remove any duplicates (in case of overlaps)
       combined_df <- combined_df[!combined_df$Symbol %in% batch_results$Symbol, ]
       
-      # Combine with new batch
+      # combine with new batch
       full_df <- rbind(combined_df, batch_results)
       
-      # Save combined results
+      # save combined results
       write.csv(full_df, "sp500_fundamentals_combined.csv", row.names = FALSE)
       cat("Combined results updated with", nrow(batch_results), "new companies\n")
       cat("Total companies in combined file:", nrow(full_df), "\n")
     } else {
-      # First batch, just save as combined
+      # first batch, just save as combined
       write.csv(batch_results, "sp500_fundamentals_combined.csv", row.names = FALSE)
       cat("Combined results file created with", nrow(batch_results), "companies\n")
     }
@@ -518,3 +607,5 @@ if (length(remaining_symbols) > 0) {
 } else {
   cat("No more symbols to process. All S&P 500 companies have been collected.\n")
 }
+```
+
