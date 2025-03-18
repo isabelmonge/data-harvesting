@@ -260,8 +260,8 @@ This approach uses manual VPN rotation with multiple API keys to efficiently col
 
 #### Prerequisites
 
--Any free VPN service (we used [PrivadoVPN](https://privadovpn.com/software/?device=macos))
--Multiple Alpha Vantage API keys in a .env file
+Any free VPN service (we used [PrivadoVPN](https://privadovpn.com/software/?device=macos))
+Multiple Alpha Vantage API keys in a .env file
 
 #### Usage
 
