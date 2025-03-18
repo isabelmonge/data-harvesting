@@ -12,7 +12,7 @@ This project combines multiple data sources into a comprehensive data tool:
 
 ## Web Scraper Instructions
 
-### Step 1: Set up Docker container
+#### Step 1: Set up Docker container
 
 1. **Install Docker Desktop** for your operating system:
    - [Download Docker](https://www.docker.com/get-started)
@@ -29,7 +29,7 @@ This project combines multiple data sources into a comprehensive data tool:
    ```
    You should see a container named `selenium_firefox` in the list.
 
-### Step 2: Set up R environment
+#### Step 2: Set up R environment
 
 1. **Download and install R from CRAN:**
    - **Windows users:** Select "Download R for Windows"
@@ -44,7 +44,7 @@ This project combines multiple data sources into a comprehensive data tool:
    install.packages(c("RSelenium", "rvest", "xml2", "lubridate", "tidyquant"))
    ```
    
-### Step 3: Run the Scraper
+#### Step 3: Run the Scraper
 
 1. **Download the `scraper_script.R` file** from this repository.
 2. **Open R or RStudio**.
@@ -57,13 +57,13 @@ This project combines multiple data sources into a comprehensive data tool:
    source("scraper_script.R")
    ```
 
-### How It Works
+#### How It Works
 - Connects to the Selenium Firefox container
 - Scrapes earnings call transcripts for S&P 500 companies
 - Creates a file called `all_transcripts.csv` with the results
 - Makes results available in R after every 5 tickers via the `current_transcripts_df` variable
 
-### Troubleshooting
+#### Troubleshooting
 
 - **If Docker container stops:** Restart it with:
   ```bash
@@ -139,7 +139,7 @@ The Auto Tor IP Rotation approach uses the Tor network to rotate IP addresses, a
    Rscript API_main_approach.R
    ```
 
-### How It Works
+#### How It Works
 1. **IP Rotation**: The Auto Tor IP Changer restarts the Tor Browser at regular intervals, providing the user with a new IP address each time
 2. **Proxy Configuration**: The R script connects through the Tor SOCKS proxy (127.0.0.1:9150)
 3. **API Requests**: With constantly rotating IPs, you can make more API requests without triggering rate limits
@@ -180,7 +180,7 @@ Or with options:
 fallback_alpha_vantage.R --auto --refresh=5 --combined=sp500_fundamentals_combined.csv
 ```
 
-### How It Works
+#### How It Works
 
 Smart Prioritization: The script prioritizes S&P 500 companies by market capitalization
 
@@ -230,12 +230,12 @@ check_collection_progress()
 main(start_index = 42)  # Replace with the "Next start index" value from previous step
 ```
 
-### How It Works
+#### How It Works
 
 The script intelligently selects uncollected S&P 500 companies. It manages multiple API keys to respect Alpha Vantage's rate limits (5 calls per minute, 25 calls per day)
 After a set number of requests per IP (requests_per_ip) - which is set to 25 by default - it prompts you to change your VPN location. Progress is automatically saved after each successful request, allowing you to resume at any time. The script maintains detailed logs of the collection process and generates both partial and complete datasets
 
-### Configuration Options
+#### Configuration Options
 
 sample_size: Number of companies to collect (default: 100)
 requests_per_ip: Requests before VPN rotation (default: 25)
@@ -243,7 +243,7 @@ start_index: Index to resume collection from
 data_file: Path to the output CSV file
 
 
-### Troubleshooting
+#### Troubleshooting
 
 #### API Collection Issues
 - **API rate limits**: Verify your approach configuration and adjust parameters if needed
