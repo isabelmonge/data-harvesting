@@ -16,11 +16,11 @@ This project combines multiple data sources into a comprehensive data tool:
 - **R/RStudio:** Make sure R is installed and available from command line
 - **Install the following R packages:**
   ```R
-  library(RSelenium)
-  library(rvest)
-  library(xml2)
-  library(lubridate)
-  library(tidyquant)
+  install.packages("RSelenium")
+  install.packages("rvest")
+  install.packages("xml2")
+  install.packages("lubridate")
+  install.packages("tidyquant")
    ```
 
 ## Quick Start Guide
