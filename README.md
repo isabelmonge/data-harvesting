@@ -1,6 +1,6 @@
 # Stock Market Sentiment Analysis and Performance Tracking of the S&P 500 using Scraping and APIs
 
-This work is a combined approach using a Selenium-based web scraper and API data integration, with a Shiny app for analysis.
+This work is a combined approach using a Selenium-based web scraper and API data integration, with a Shiny app for analysis. 
 
 ## Overview
 
