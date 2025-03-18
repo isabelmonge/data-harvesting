@@ -51,6 +51,7 @@ The system also fetches complementary data through API calls, which is processed
 
 ### Shiny App
 A Shiny application combines data from both sources (web scraper and API) to create interactive visualizations and analysis tools.
+Here's the link: https://rstockmarketdashboard.shinyapps.io/Stock_market_dashboard/
 
 ## Troubleshooting
 
@@ -107,10 +108,10 @@ This project combines multiple data collection strategies into a comprehensive f
 
 We've implemented three different approaches to efficiently collect data while respecting API limitations:
 
-### 1. Auto Tor IP Rotation Approach
+### 1. Main approach: Auto Tor IP Rotation
 
 #### Overview
-The Auto Tor IP Rotation approach uses the Tor network to rotate IP addresses, allowing us to make multiple API requests without hitting rate limits. This method is resolves the issue that Alpha Vantage has a hard limit of 25 requests per day and per IP address.
+The Auto Tor IP Rotation approach uses the Tor network to rotate IP addresses, allowing us to make multiple API requests without hitting rate limits. This method resolves the issue that Alpha Vantage has a hard limit of 25 requests per day and per IP address. We used the following tutorial to make it work: https://github.com/FDX100/Auto_Tor_IP_changer
 
 #### Installation
 
@@ -157,7 +158,7 @@ The Auto Tor IP Rotation approach uses the Tor network to rotate IP addresses, a
 - **Connection errors**: Verify that Tor is running properly and the SOCKS proxy is accessible
 - **Slow response times**: This is normal when using Tor; consider adjusting request intervals
 
-### 2. Backup: batched requests approach
+### 2. Backup 1: batched requests approach
 
 #### Overview
 This approach intelligently cycles through multiple Alpha Vantage API keys to maximize data collection efficiency while respecting rate limits. It prioritizes companies by market cap and implements a smart refresh cycle to keep high-value data updated.
@@ -208,7 +209,7 @@ Error Handling: Failed requests are retried and logged, ensuring robust data col
 
 --combined=FILE: Specify the combined output file path
 
-### 3. Backup: manual Collection with VPN Rotation
+### 3. Backup 2: manual Collection with VPN Rotation
 
 #### Overview
 This approach uses manual VPN rotation with multiple API keys to efficiently collect data while respecting Alpha Vantage's rate limits. The script intelligently manages API keys and tracks collection progress, prompting you to change your VPN location when needed.
