@@ -76,13 +76,11 @@ The script will:
 - **For network issues:** Ensure that port `4449` is available on your system.
 - If you get a container conflict error: This means a container with the name selenium_firefox already exists. You have two options:
 
-   1. Remove the existing container before creating a new one:
+   - Remove the existing container before creating a new one:
 ```bash
 docker rm -f selenium_firefox
 ```
-   Then re-run the docker run command.
-
-   2. Run the new container with a different name by changing selenium_firefox to something unique:
+   - Run the new container with a different name by changing selenium_firefox to something unique:
 ```bash
 docker run -d -p 4449:4444 --name selenium_firefox_new selenium/standalone-firefox:3.141.59
 ```
