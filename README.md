@@ -14,7 +14,7 @@ This project combines multiple data sources into a comprehensive data tool:
 
 - **Docker Desktop:** [Download here](https://www.docker.com/products/docker-desktop/)
 - **R/RStudio:** Make sure R is installed and available from command line
-- **Install the following R packages**
+- **Install the following R packages:**
   ```R
   library(RSelenium)
   library(rvest)
