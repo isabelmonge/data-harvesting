@@ -1868,40 +1868,55 @@ transcript text.</p>
 <span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>  company_name <span class="ot">&lt;-</span> ticker</span>
 <span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>  </span>
 <span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>  <span class="co"># get date from the specific div</span></span>
-<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>  date_text <span class="ot">&lt;-</span> remDr<span class="sc">$</span><span class="fu">findElement</span>(<span class="st">&quot;css selector&quot;</span>, <span class="st">&quot;div.d-block.c-gray-8.font-smaller&quot;</span>)<span class="sc">$</span><span class="fu">getElementText</span>()</span>
-<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>  </span>
-<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>  <span class="co"># convert to proper date object using lubridate</span></span>
-<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>  transcript_date <span class="ot">&lt;-</span> <span class="fu">mdy</span>(date_text)</span>
-<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>  </span>
-<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>  <span class="co"># get the HTML source of the page</span></span>
-<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a>  page_source <span class="ot">&lt;-</span> remDr<span class="sc">$</span><span class="fu">getPageSource</span>()[[<span class="dv">1</span>]]</span>
-<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a>  </span>
-<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a>  <span class="co"># parse the HTML</span></span>
-<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a>  html <span class="ot">&lt;-</span> <span class="fu">read_html</span>(page_source)</span>
-<span id="cb4-17"><a href="#cb4-17" tabindex="-1"></a>  </span>
-<span id="cb4-18"><a href="#cb4-18" tabindex="-1"></a>  <span class="co"># extract the transcript text from the specific div with ID &quot;transcriptPresentation&quot;</span></span>
-<span id="cb4-19"><a href="#cb4-19" tabindex="-1"></a>  transcript_text <span class="ot">&lt;-</span> html <span class="sc">%&gt;%</span></span>
-<span id="cb4-20"><a href="#cb4-20" tabindex="-1"></a>    <span class="fu">html_node</span>(<span class="st">&quot;#transcriptPresentation&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb4-21"><a href="#cb4-21" tabindex="-1"></a>    <span class="fu">html_text</span>()</span>
-<span id="cb4-22"><a href="#cb4-22" tabindex="-1"></a>  </span>
-<span id="cb4-23"><a href="#cb4-23" tabindex="-1"></a>  <span class="co"># clean up the text (remove extra whitespace)</span></span>
-<span id="cb4-24"><a href="#cb4-24" tabindex="-1"></a>  transcript_text <span class="ot">&lt;-</span> <span class="fu">gsub</span>(<span class="st">&quot;</span><span class="sc">\\</span><span class="st">s+&quot;</span>, <span class="st">&quot; &quot;</span>, transcript_text)</span>
-<span id="cb4-25"><a href="#cb4-25" tabindex="-1"></a>  transcript_text <span class="ot">&lt;-</span> <span class="fu">trimws</span>(transcript_text)</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>  <span class="co"># try xpath first, then look for any date-like text, then just return NA</span></span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>date_text <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>({</span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>  remDr<span class="sc">$</span><span class="fu">findElement</span>(<span class="st">&quot;css selector&quot;</span>, <span class="st">&quot;div.d-block.c-gray-8.font-smaller&quot;</span>)<span class="sc">$</span><span class="fu">getElementText</span>()</span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>}, <span class="at">error =</span> <span class="cf">function</span>(e) {</span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>  date_text <span class="ot">&lt;-</span> <span class="cn">NULL</span></span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>  possible_elements <span class="ot">&lt;-</span> remDr<span class="sc">$</span><span class="fu">findElements</span>(<span class="st">&quot;css selector&quot;</span>, <span class="st">&quot;div&quot;</span>)</span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a>  <span class="cf">for</span>(elem <span class="cf">in</span> possible_elements) {</span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a>    <span class="fu">tryCatch</span>({</span>
+<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a>      text <span class="ot">&lt;-</span> elem<span class="sc">$</span><span class="fu">getElementText</span>()</span>
+<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a>      <span class="cf">if</span>(<span class="fu">grepl</span>(<span class="st">&quot;(January|February|March|April|May|June|July|August|September|October|November|December)</span><span class="sc">\\</span><span class="st">s+</span><span class="sc">\\</span><span class="st">d{1,2},</span><span class="sc">\\</span><span class="st">s+</span><span class="sc">\\</span><span class="st">d{4}&quot;</span>, text)) {</span>
+<span id="cb4-17"><a href="#cb4-17" tabindex="-1"></a>        <span class="fu">return</span>(text)</span>
+<span id="cb4-18"><a href="#cb4-18" tabindex="-1"></a>      }</span>
+<span id="cb4-19"><a href="#cb4-19" tabindex="-1"></a>    }, <span class="at">error =</span> <span class="cf">function</span>(e) {})</span>
+<span id="cb4-20"><a href="#cb4-20" tabindex="-1"></a>  }</span>
+<span id="cb4-21"><a href="#cb4-21" tabindex="-1"></a>  <span class="fu">return</span>(<span class="cn">NA</span>)</span>
+<span id="cb4-22"><a href="#cb4-22" tabindex="-1"></a>})</span>
+<span id="cb4-23"><a href="#cb4-23" tabindex="-1"></a>  </span>
+<span id="cb4-24"><a href="#cb4-24" tabindex="-1"></a>  <span class="co"># convert to proper date object using lubridate</span></span>
+<span id="cb4-25"><a href="#cb4-25" tabindex="-1"></a>  transcript_date <span class="ot">&lt;-</span> <span class="fu">mdy</span>(date_text)</span>
 <span id="cb4-26"><a href="#cb4-26" tabindex="-1"></a>  </span>
-<span id="cb4-27"><a href="#cb4-27" tabindex="-1"></a>  <span class="co"># create data frame with properly named columns</span></span>
-<span id="cb4-28"><a href="#cb4-28" tabindex="-1"></a>  result_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb4-29"><a href="#cb4-29" tabindex="-1"></a>    <span class="at">company =</span> company_name,</span>
-<span id="cb4-30"><a href="#cb4-30" tabindex="-1"></a>    <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span></span>
-<span id="cb4-31"><a href="#cb4-31" tabindex="-1"></a>  )</span>
-<span id="cb4-32"><a href="#cb4-32" tabindex="-1"></a>   </span>
-<span id="cb4-33"><a href="#cb4-33" tabindex="-1"></a>  <span class="co"># add the date column with a proper name</span></span>
-<span id="cb4-34"><a href="#cb4-34" tabindex="-1"></a>  result_df<span class="sc">$</span>transcript_date <span class="ot">&lt;-</span> transcript_date</span>
-<span id="cb4-35"><a href="#cb4-35" tabindex="-1"></a>  </span>
-<span id="cb4-36"><a href="#cb4-36" tabindex="-1"></a>  <span class="co"># add the transcript text</span></span>
-<span id="cb4-37"><a href="#cb4-37" tabindex="-1"></a>  result_df<span class="sc">$</span>transcript_text <span class="ot">&lt;-</span> transcript_text</span>
-<span id="cb4-38"><a href="#cb4-38" tabindex="-1"></a>  </span>
-<span id="cb4-39"><a href="#cb4-39" tabindex="-1"></a>  <span class="fu">return</span>(result_df)</span>
-<span id="cb4-40"><a href="#cb4-40" tabindex="-1"></a>}</span></code></pre></div>
+<span id="cb4-27"><a href="#cb4-27" tabindex="-1"></a>  <span class="co"># get the HTML source of the page</span></span>
+<span id="cb4-28"><a href="#cb4-28" tabindex="-1"></a>  page_source <span class="ot">&lt;-</span> remDr<span class="sc">$</span><span class="fu">getPageSource</span>()[[<span class="dv">1</span>]]</span>
+<span id="cb4-29"><a href="#cb4-29" tabindex="-1"></a>  </span>
+<span id="cb4-30"><a href="#cb4-30" tabindex="-1"></a>  <span class="co"># parse the HTML</span></span>
+<span id="cb4-31"><a href="#cb4-31" tabindex="-1"></a>  html <span class="ot">&lt;-</span> <span class="fu">read_html</span>(page_source)</span>
+<span id="cb4-32"><a href="#cb4-32" tabindex="-1"></a>  </span>
+<span id="cb4-33"><a href="#cb4-33" tabindex="-1"></a>  <span class="co"># extract the transcript text from the specific div with ID &quot;transcriptPresentation&quot;</span></span>
+<span id="cb4-34"><a href="#cb4-34" tabindex="-1"></a>  transcript_text <span class="ot">&lt;-</span> html <span class="sc">%&gt;%</span></span>
+<span id="cb4-35"><a href="#cb4-35" tabindex="-1"></a>    <span class="fu">html_node</span>(<span class="st">&quot;#transcriptPresentation&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb4-36"><a href="#cb4-36" tabindex="-1"></a>    <span class="fu">html_text</span>()</span>
+<span id="cb4-37"><a href="#cb4-37" tabindex="-1"></a>  </span>
+<span id="cb4-38"><a href="#cb4-38" tabindex="-1"></a>  <span class="co"># clean up the text (remove extra whitespace)</span></span>
+<span id="cb4-39"><a href="#cb4-39" tabindex="-1"></a>  transcript_text <span class="ot">&lt;-</span> <span class="fu">gsub</span>(<span class="st">&quot;</span><span class="sc">\\</span><span class="st">s+&quot;</span>, <span class="st">&quot; &quot;</span>, transcript_text)</span>
+<span id="cb4-40"><a href="#cb4-40" tabindex="-1"></a>  transcript_text <span class="ot">&lt;-</span> <span class="fu">trimws</span>(transcript_text)</span>
+<span id="cb4-41"><a href="#cb4-41" tabindex="-1"></a>  </span>
+<span id="cb4-42"><a href="#cb4-42" tabindex="-1"></a>  <span class="co"># create data frame with properly named columns</span></span>
+<span id="cb4-43"><a href="#cb4-43" tabindex="-1"></a>  result_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb4-44"><a href="#cb4-44" tabindex="-1"></a>    <span class="at">company =</span> company_name,</span>
+<span id="cb4-45"><a href="#cb4-45" tabindex="-1"></a>    <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span></span>
+<span id="cb4-46"><a href="#cb4-46" tabindex="-1"></a>  )</span>
+<span id="cb4-47"><a href="#cb4-47" tabindex="-1"></a>   </span>
+<span id="cb4-48"><a href="#cb4-48" tabindex="-1"></a>  <span class="co"># add the date column with a proper name</span></span>
+<span id="cb4-49"><a href="#cb4-49" tabindex="-1"></a>  result_df<span class="sc">$</span>transcript_date <span class="ot">&lt;-</span> transcript_date</span>
+<span id="cb4-50"><a href="#cb4-50" tabindex="-1"></a>  </span>
+<span id="cb4-51"><a href="#cb4-51" tabindex="-1"></a>  <span class="co"># add the transcript text</span></span>
+<span id="cb4-52"><a href="#cb4-52" tabindex="-1"></a>  result_df<span class="sc">$</span>transcript_text <span class="ot">&lt;-</span> transcript_text</span>
+<span id="cb4-53"><a href="#cb4-53" tabindex="-1"></a>  </span>
+<span id="cb4-54"><a href="#cb4-54" tabindex="-1"></a>  <span class="fu">return</span>(result_df)</span>
+<span id="cb4-55"><a href="#cb4-55" tabindex="-1"></a>}</span></code></pre></div>
 </div>
 <div id="run-the-scraper" class="section level2">
 <h2>Run the Scraper</h2>
@@ -1953,10 +1968,10 @@ requiring extensive processing time.</p>
 ## [1] FALSE
 ## 
 ## $`moz:processID`
-## [1] 81
+## [1] 80
 ## 
 ## $`moz:profile`
-## [1] &quot;/tmp/rust_mozprofileyxxExO&quot;
+## [1] &quot;/tmp/rust_mozprofileWqpe4J&quot;
 ## 
 ## $`moz:shutdownTimeout`
 ## [1] 60000
@@ -2000,10 +2015,10 @@ requiring extensive processing time.</p>
 ## [1] &quot;dismiss and notify&quot;
 ## 
 ## $webdriver.remote.sessionid
-## [1] &quot;ab662028-1bb3-4755-811f-3bbfb624b1ce&quot;
+## [1] &quot;9cc67e77-927c-43a6-a86b-ea6520ccddef&quot;
 ## 
 ## $id
-## [1] &quot;ab662028-1bb3-4755-811f-3bbfb624b1ce&quot;
+## [1] &quot;9cc67e77-927c-43a6-a86b-ea6520ccddef&quot;
 ## 
 ## Consent popup closed.
 ## Typed AAPL and pressed Enter.
@@ -2038,10 +2053,10 @@ requiring extensive processing time.</p>
 ## [1] FALSE
 ## 
 ## $`moz:processID`
-## [1] 79
+## [1] 80
 ## 
 ## $`moz:profile`
-## [1] &quot;/tmp/rust_mozprofileVoYmS5&quot;
+## [1] &quot;/tmp/rust_mozprofileHgsKhu&quot;
 ## 
 ## $`moz:shutdownTimeout`
 ## [1] 60000
@@ -2085,10 +2100,10 @@ requiring extensive processing time.</p>
 ## [1] &quot;dismiss and notify&quot;
 ## 
 ## $webdriver.remote.sessionid
-## [1] &quot;b5fccf10-589c-4324-8c9c-d518a6cf331f&quot;
+## [1] &quot;688fd775-4523-4927-b720-39e3eaea7715&quot;
 ## 
 ## $id
-## [1] &quot;b5fccf10-589c-4324-8c9c-d518a6cf331f&quot;
+## [1] &quot;688fd775-4523-4927-b720-39e3eaea7715&quot;
 ## 
 ## Consent popup closed.
 ## Typed AMZN and pressed Enter.
@@ -2123,10 +2138,10 @@ requiring extensive processing time.</p>
 ## [1] FALSE
 ## 
 ## $`moz:processID`
-## [1] 80
+## [1] 79
 ## 
 ## $`moz:profile`
-## [1] &quot;/tmp/rust_mozprofilesCqhBE&quot;
+## [1] &quot;/tmp/rust_mozprofilemT7ZWb&quot;
 ## 
 ## $`moz:shutdownTimeout`
 ## [1] 60000
@@ -2170,10 +2185,10 @@ requiring extensive processing time.</p>
 ## [1] &quot;dismiss and notify&quot;
 ## 
 ## $webdriver.remote.sessionid
-## [1] &quot;5fba3397-7538-4af6-90a5-69e7a80670cd&quot;
+## [1] &quot;9025d504-b907-4b3f-9041-5577d097906b&quot;
 ## 
 ## $id
-## [1] &quot;5fba3397-7538-4af6-90a5-69e7a80670cd&quot;
+## [1] &quot;9025d504-b907-4b3f-9041-5577d097906b&quot;
 ## 
 ## Consent popup closed.
 ## Typed META and pressed Enter.

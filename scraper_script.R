@@ -155,8 +155,25 @@ extract_transcript <- function(remDr, ticker) {
   # use ticker as company name
   company_name <- ticker
   
-  # get date from the specific div
-  date_text <- remDr$findElement("css selector", "div.d-block.c-gray-8.font-smaller")$getElementText()
+  # get date - try xpath first, then look for any date-like text
+  date_text <- tryCatch({
+    # 1. Original selector
+    remDr$findElement("css selector", "div.d-block.c-gray-8.font-smaller")$getElementText()
+  }, error = function(e) {
+    # 2. Fallback: look for any div with date-like text
+    date_text <- NULL
+    possible_elements <- remDr$findElements("css selector", "div")
+    for(elem in possible_elements) {
+      tryCatch({
+        text <- elem$getElementText()
+        if(grepl("(January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{1,2},\\s+\\d{4}", text)) {
+          return(text)  # Return from the tryCatch error handler
+        }
+      }, error = function(e) {})
+    }
+    # 3. If nothing found, return NA
+    return(NA)
+  })
   
   # convert to proper date object using lubridate
   transcript_date <- mdy(date_text)
