@@ -95,8 +95,8 @@ also use the .R scripts. Indeed, the .R scripts offer our extensive messaging sy
 
 ## API Instructions
 
-These instructions outline three approaches to efficiently collect S&P 500 data from the Alpha Vantage API while circumventing (1) and (3) or respecting rate limits (2).
-The main approach is the most efficient one. But we also developed two alternative approaches.
+These instructions outline three approaches to efficiently collect S&P 500 data from the Alpha Vantage API while circumventing (approaches one and three) or respecting rate limits (approach two).
+The main approach is the most efficient one. But we also developed two alternative approaches. In particular, approach 2 is meant to be used in an automated way (i.e., through regular scheduling) once the user has created the full dataset. And approach three is meant to help the user create the full data set if the main approach does not work.
 
 ### Prerequisites
 
