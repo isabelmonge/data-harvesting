@@ -12,6 +12,9 @@ This project combines multiple data sources into a comprehensive data tool to tr
 
 The Shiny App can be accessed [here](https://rstockmarketdashboard.shinyapps.io/Stock_market_dashboard/).
 
+This repo contains both .R scripts and .Rmd markdown files. In the following, we will document the reproduction with the .Rmd files. However, you could 
+also use the .R scripts. Indeed, the .R scripts offer our extensive messaging system which can help with debugging and monitoring progress.
+
 ## Web Scraper Instructions
 
 #### Step 1: Set up Docker container
@@ -92,17 +95,33 @@ The Shiny App can be accessed [here](https://rstockmarketdashboard.shinyapps.io/
 
 ## API Instructions
 
-These instructions outline three approaches to efficiently collect S&P 500 data from the Alpha Vantage API while respecting rate limits.
-
-This repo contains both .R scripts and .Rmd markdown files. In the following, we will document the reproduction with the .Rmd files. However, you could 
-also use the .R scripts. Indeed, the .R scripts offer our extensive messaging system which can help with debugging and monitoring progress.
+These instructions outline three approaches to efficiently collect S&P 500 data from the Alpha Vantage API while circumventing (1) and (3) or respecting rate limits (2).
+The main approach is the most efficient one. But we also developed two alternative approaches.
 
 ### Prerequisites
 
 - **R/RStudio**: Version 4.0.0 or higher with required packages
 - **Tor Browser**: For the main approach - [Download here](https://www.torproject.org/download/) (note: this webpage may not work on institutional wifi networks with high security controls)
 - **Python 3.6+**: With the `requests` package installed
-- **.env file with API keys** API keys can be generated [here](https://www.alphavantage.co/support/#api-key) 
+- **.env file with API keys** API keys can be generated [here](https://www.alphavantage.co/support/#api-key)
+
+### Basic Setup
+
+This setup is the same for all three approaches. In each of those, you would need an .env file with API keys in your root directory that follows a specific format and the following R packages installed.
+
+Create a .env file in the root directory with your Alpha Vantage API keys:
+ALPHA_VANTAGE_KEY_1=YOUR_KEY_1
+ALPHA_VANTAGE_KEY_2=YOUR_KEY_2
+Add more keys as needed
+
+``` R # Create .env
+writeLines("ALPHA_VANTAGE_KEY_1=YOUR_KEY_1", ".env")
+```
+
+Install required R packages:
+``` R # Install packages
+install.packages(c("httr", "jsonlite", "dotenv", "rvest"))
+```
 
 ### 1. Main approach: Auto Tor IP Rotation
 
@@ -179,45 +198,44 @@ Thus, to force collection of new data for testing purposes, you have three optio
 ### 2. Backup 1: batched requests approach
 
 #### Overview
-This approach intelligently cycles through multiple Alpha Vantage API keys to maximize data collection efficiency while respecting rate limits. It prioritizes companies by market cap and implements a smart refresh cycle to keep high-value data updated.
+This approach spreads the requests over time to avoid hitting the request limits for the IP address. While it can be run once, we developed it in way such that it can efficiently run on a VPS to fully automate the data collection. Indeed, the high-level idea is that the first approach is used **once** to build the initial dataset and this approach here is then used to regularly update it. It does so by intelligently cycling through multiple Alpha Vantage API keys. Moreover, the script intentionally prioritizes companies by market cap and uses a smart refresh cycle to keep high-value data updated.
 
-#### Setup
-
-Create a .env file in the root directory with your Alpha Vantage API keys:
-ALPHA_VANTAGE_KEY_1=YOUR_KEY_1
-ALPHA_VANTAGE_KEY_2=YOUR_KEY_2
-Add more keys as needed
-
-``` R # Create .env
-writeLines("ALPHA_VANTAGE_KEY_1=YOUR_KEY_1", ".env")
-```
-
-Install required R packages:
-``` R # Install packages
-install.packages(c("httr", "jsonlite", "dotenv", "rvest"))
-```
 
 #### Usage
 Run the API key rotation script:
 ``` bash 
-fallback_alpha_vantage.R
+R -e "rmarkdown::render('API_backup_1.Rmd')"
 ```
+
+``` bash 
+Rscript API_backup_1.R
+```
+
 Or with options:
 ``` bash
-fallback_alpha_vantage.R --auto --refresh=5 --combined=sp500_fundamentals_combined.csv
+Rscript API_backup_1.R --auto --refresh=5 --combined=sp500_fundamentals_combined.csv
 ```
 
 #### How It Works
 
-Smart Prioritization: The script prioritizes S&P 500 companies by market capitalization
+-Smart Prioritization: The script prioritizes S&P 500 companies by market capitalization
+-Refresh Cycles: Top companies are refreshed more frequently in a configurable cycle
+-Key Management: When one API key hits its rate limit, the script automatically switches to the next one
+-Progress Tracking: Each day's collection is logged and saved separately, while also updating the main dataset 
+-Error Handling: Failed requests are retried and logged, ensuring robust data collection
 
-Refresh Cycles: Top companies are refreshed more frequently in a configurable cycle
+#### Output Files:
 
-Key Management: When one API key hits its rate limit, the script automatically switches to the next one
+The output from the main function will be:
 
-Progress Tracking: Each day's collection is logged and saved separately, while also updating a master dataset
+-sp500_fundamentals_combined.csv: combined file with all collected data
+-sp500_fundamentals_batch_[DATE].csv: daily batch results
+-alpha_vantage_progress_[DATE].rds: daily progress in RDS format
+-processed_symbols_[DATE].txt: list of successfully processed symbols for the day
+-alpha_vantage_progress_log.txt: detailed log of all operations
 
-Error Handling: Failed requests are retried and logged, ensuring robust data collection
+Note that both the R markdown and the script have a test function and the main function is currently commented out. The output from the test function will be found in test_fundamentals.csv
+
 
 #### Configuration Options
 
