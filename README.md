@@ -1,4 +1,4 @@
-# Web Scraper Tool
+# Stock Market Sentiment Analysis and Performance Tracking Using Scraping and APIs
 
 A Selenium-based web scraper using R to automate data collection, combined with API data integration and Shiny app visualization.
 
@@ -6,17 +6,11 @@ A Selenium-based web scraper using R to automate data collection, combined with 
 
 This project combines multiple data sources into a comprehensive data tool:
 
-1. **Web Scraper**: Uses Docker, Selenium, and R to automatically collect web data
-2. **API Integration**: Fetches additional data through API calls
+1. **Web Scraper**: Uses Docker, Selenium, and R to automatically collect earnings call transcripts
+2. **API Integration**: Fetches additional stock market data through API calls
 3. **Shiny App**: Combines and visualizes all data in an interactive dashboard
 
-## MarketBeat Earnings Call Transcript Scraper
-
-This tool scrapes earnings call transcripts from MarketBeat.com for S&P 500 companies using R and a Selenium Firefox Docker container.
-
----
-
-## Setup Instructions
+## Web Scraper Instructions
 
 ### Step 1: Set up Docker container
 
@@ -27,15 +21,13 @@ This tool scrapes earnings call transcripts from MarketBeat.com for S&P 500 comp
    ```bash
    docker run -d -p 4449:4444 --name selenium_firefox selenium/standalone-firefox:3.141.59
    ```
-   **Note for Mac users with Apple Silicon (M1/M2/M3):** You may see a warning about platform mismatch (amd64 vs arm64). This is normal, and the container should still work properly through emulation.
+   **Note for Mac users with Apple Silicon (M1/M2/M3):** You may see a warning about platform mismatch (amd64 vs arm64). This is normal, and the container should still work properly.
 
 3. **Verify the container is running:**
    ```bash
    docker ps
    ```
    You should see a container named `selenium_firefox` in the list.
-
----
 
 ### Step 2: Set up R environment
 
@@ -51,9 +43,7 @@ This tool scrapes earnings call transcripts from MarketBeat.com for S&P 500 comp
    ```r
    install.packages(c("RSelenium", "rvest", "xml2", "lubridate", "tidyquant"))
    ```
-
----
-
+   
 ### Step 3: Run the Scraper
 
 1. **Download the `scraper_script.R` file** from this repository.
@@ -73,9 +63,7 @@ The script will:
 - Create a file called `all_transcripts.csv` with the results
 - Make results available in R via the `current_transcripts_df` variable
 
----
-
-## Troubleshooting
+### Troubleshooting
 
 - **If Docker container stops:** Restart it with:
   ```bash
@@ -86,83 +74,29 @@ The script will:
   docker ps
   ```
 - **For network issues:** Ensure that port `4449` is available on your system.
+- If you get a container conflict error: This means a container with the name selenium_firefox already exists. You have two options:
 
----
+   1. Remove the existing container before creating a new one:
+```bash
+docker rm -f selenium_firefox
+```
+   Then re-run the docker run command.
 
-This guide provides all necessary steps to run the MarketBeat Earnings Call Transcript Scraper effectively. If you encounter any issues, refer to the troubleshooting section or open an issue in the repository.
+   2. Run the new container with a different name by changing selenium_firefox to something unique:
+```bash
+docker run -d -p 4449:4444 --name selenium_firefox_new selenium/standalone-firefox:3.141.59
+```
 
+## API Instructions
 
+These instructions outline three approaches to efficiently collect S&P 500 data from the Alpha Vantage API while respecting rate limits.
 
-## How It Works
-
-This project operates in several steps:
-
-### Web Scraper
-1. **Setup:** Pulls and runs a Selenium Firefox container from Docker Hub
-2. **Execution:** Runs the R script that connects to the Selenium container
-3. **Data Collection:** The script navigates to target websites, extracts data, and saves it locally
-
-### API Integration
-The system also fetches complementary data through API calls, which is processed and stored alongside the scraped data.
-
-### Shiny App
-A Shiny application combines data from both sources (web scraper and API) to create interactive visualizations and analysis tools.
-Here's the link: https://rstockmarketdashboard.shinyapps.io/Stock_market_dashboard/
-
-## Troubleshooting
-
-### Common Issues:
-
-- **Docker not running error:**
-  Make sure Docker Desktop is running before starting the scraper
-
-- **Port already in use error:**
-  Run this command in the terminal to remove any existing containers: docker rm -f scraper_container
-
-  - **Script errors or no data:**
-Check your internet connection and make sure the target website hasn't changed its structure
-
-## Project Components
-
-### Web Scraper
-- Uses Selenium and Firefox to automate web browsing
-- Collects structured data from target websites
-- Runs in a containerized environment for consistent performance
-
-### API Integration
-- Connects to external data sources via API
-- Processes and standardizes API responses
-- Combines with scraped data for comprehensive analysis
-
-### Shiny Application
-- Interactive dashboard for data exploration
-- Visualizes combined data from both sources
-- Provides filtering and analysis tools
-
-- Can be accessed here: https://rstockmarketdashboard.shinyapps.io/Stock_market_dashboard/
-  
-
-
-# API
-
-This project collects financial data from the Alpha Vantage API for S&P 500 companies using three different approaches to overcome API rate limits.
-
-## Overview
-
-This project combines multiple data collection strategies into a comprehensive financial data tool:
-
-1. **API Data Collection**: Uses three different approaches to efficiently gather data from Alpha Vantage API
-
-## Prerequisites
+### Prerequisites
 
 - **R/RStudio**: Version 4.0.0 or higher with required packages
 - **Tor Browser**: For IP rotation approach - [Download here](https://www.torproject.org/download/) (note: this webpage may not work on institutional wifi networks with high security controls)
 - **Python 3.6+**: With the `requests` package installed
 - **.env file with API keys** API keys can be generated [here](https://www.alphavantage.co/support/#api-key) 
-
-## API Data Collection Approaches
-
-We've implemented three different approaches to efficiently collect data while respecting API limitations:
 
 ### 1. Main approach: Auto Tor IP Rotation
 
@@ -300,7 +234,7 @@ main(start_index = 42)  # Replace with the "Next start index" value from previou
 The script intelligently selects uncollected S&P 500 companies. It manages multiple API keys to respect Alpha Vantage's rate limits (5 calls per minute, 25 calls per day)
 After a set number of requests per IP (requests_per_ip) - which is set to 25 by default - it prompts you to change your VPN location. Progress is automatically saved after each successful request, allowing you to resume at any time. The script maintains detailed logs of the collection process and generates both partial and complete datasets
 
-#### Configuration Options
+### Configuration Options
 
 sample_size: Number of companies to collect (default: 100)
 requests_per_ip: Requests before VPN rotation (default: 25)
@@ -308,9 +242,7 @@ start_index: Index to resume collection from
 data_file: Path to the output CSV file
 
 
-## Troubleshooting
-
-### Common Issues:
+### Troubleshooting
 
 #### API Collection Issues
 - **API rate limits**: Verify your approach configuration and adjust parameters if needed
@@ -323,7 +255,7 @@ data_file: Path to the output CSV file
   - Verify you clicked "Always connect automatically" when Tor Browser opened
   - Check if port 9150 is accessible
 
- 
+
 ## Project Information
 
 This is a school project created to demonstrate data acquisition, storage and integration techniques using web scraping, API calls, and interactive visualization.
