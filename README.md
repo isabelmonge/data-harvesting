@@ -201,7 +201,7 @@ The Auto Tor IP Rotation approach uses the Tor network to rotate IP addresses, a
    - Press enter in order to choose "infinite" for the number of changes
 3. Open another terminal window and run the R script:
    ```bash
-   Rscript API_key_rotation_Tor_2.R
+   Rscript API_main_approach.R
    ```
 
 #### How It Works
