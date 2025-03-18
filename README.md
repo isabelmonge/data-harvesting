@@ -248,18 +248,25 @@ Note that both the R markdown and the script have a test function and the main f
 ### 3. Backup 2: manual Collection with VPN Rotation
 
 #### Overview
-This approach uses manual VPN rotation with multiple API keys to efficiently collect data while respecting Alpha Vantage's rate limits. The script intelligently manages API keys and tracks collection progress, prompting you to change your VPN location when needed.
+This approach uses manual VPN rotation with multiple API keys to efficiently collect data. Essentially, it is based on a similar idea as the main approach, but requires more manual intervention. The script will prompt you to manually change your VPN location when needed.
 
 #### Prerequisites
 
-Any free VPN service (we used PrivadoVPN)
-Multiple Alpha Vantage API keys in a .env file
+-Any free VPN service (we used [PrivadoVPN](https://privadovpn.com/software/?device=macos))
+-Multiple Alpha Vantage API keys in a .env file
 
 #### Usage
 
+The following is ideal for testing:
+
+``` bash
+R -e "rmarkdown::render('API_backup_2.Rmd')" 
+```
+
+Or, using the R script: 
 First run: Execute the entire script and then run the main function:
 ``` R # Load the script
-source("API_key_rotation_manual.R")
+source("API_backup_2.R")
 ```
 
 ``` R # Start collection with 100 companies, 25 requests per IP
@@ -272,20 +279,19 @@ check_collection_progress()
 ```
 
 ``` R # To continue collection:
-main(start_index = 42)  # Replace with the "Next start index" value from previous step
+main(start_index = X)  # Replace **X** with the "Next start index" value from previous step
 ```
 
 #### How It Works
 
-The script intelligently selects uncollected S&P 500 companies. It manages multiple API keys to respect Alpha Vantage's rate limits (5 calls per minute, 25 calls per day)
-After a set number of requests per IP (requests_per_ip) - which is set to 25 by default - it prompts you to change your VPN location. Progress is automatically saved after each successful request, allowing you to resume at any time. The script maintains detailed logs of the collection process and generates both partial and complete datasets
+After a set number of requests per IP (requests_per_ip) - which is set to 25 by default - the code prompts you to change your VPN location. Progress is automatically saved after each successful request, allowing to resume at any time. The script created logs of the collection process and also generates both partially complete datasets and saves these.
 
 #### Configuration Options
 
-sample_size: Number of companies to collect (default: 100)
-requests_per_ip: Requests before VPN rotation (default: 25)
-start_index: Index to resume collection from
-data_file: Path to the output CSV file
+-sample_size: Number of companies to collect (default: 100)
+-requests_per_ip: Requests before VPN rotation (default: 25)
+-start_index: Index to resume collection from
+-data_file: Path to the output CSV file
 
 
 #### Troubleshooting
