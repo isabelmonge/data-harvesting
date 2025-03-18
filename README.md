@@ -94,17 +94,23 @@ The Shiny App can be accessed [here](https://rstockmarketdashboard.shinyapps.io/
 
 These instructions outline three approaches to efficiently collect S&P 500 data from the Alpha Vantage API while respecting rate limits.
 
+This repo contains both .R scripts and .Rmd markdown files. In the following, we will document the reproduction with the .Rmd files. However, you could 
+also use the .R scripts. Indeed, the .R scripts offer our extensive messaging system which can help with debugging and monitoring progress.
+
 ### Prerequisites
 
 - **R/RStudio**: Version 4.0.0 or higher with required packages
-- **Tor Browser**: For IP rotation approach - [Download here](https://www.torproject.org/download/) (note: this webpage may not work on institutional wifi networks with high security controls)
+- **Tor Browser**: For the main approach - [Download here](https://www.torproject.org/download/) (note: this webpage may not work on institutional wifi networks with high security controls)
 - **Python 3.6+**: With the `requests` package installed
 - **.env file with API keys** API keys can be generated [here](https://www.alphavantage.co/support/#api-key) 
 
 ### 1. Main approach: Auto Tor IP Rotation
 
 #### Overview
-The Auto Tor IP Rotation approach uses the Tor network to rotate IP addresses, allowing us to make multiple API requests without hitting rate limits. This method resolves the issue that Alpha Vantage has a hard limit of 25 requests per day and per IP address. We used the following tutorial to make it work: https://github.com/FDX100/Auto_Tor_IP_changer
+The Auto Tor IP Rotation approach uses the Tor network to rotate IP addresses, allowing us to make multiple API requests without hitting request limits. This method resolves the issue that Alpha Vantage has a hard limit of 25 requests per day and per IP address. For reference, we used [this](https://github.com/FDX100/Auto_Tor_IP_changer
+) following tutorial to install Auto Tor.
+
+![Auto Tor IP Changer Terminal](auto_tor_screenshot.png)
 
 #### Installation
 
@@ -136,20 +142,39 @@ The Auto Tor IP Rotation approach uses the Tor network to rotate IP addresses, a
 2. When prompted:
    - Set the interval to 75 seconds
    - Press enter in order to choose "infinite" for the number of changes
-3. Open another terminal window and run the R script:
+3. Open another terminal window and run the Rmd (or the R script):
+   ```bash
+   R -e "rmarkdown::render('API_main_approach.Rmd')"
+   ```
+   
    ```bash
    Rscript API_main_approach.R
    ```
 
+#### Output files
+1. sp500_fundamentals_batch_[timestamp].csv: individual batch results
+2. batch_progress_temp.csv: temporary progress file updated after each successful request
+3. sp500_fundamentals_combined.csv: combined results from all batches
+
+**Important Note**: 
+If you're using our pre-existing repository, sp500_fundamentals_combined.csv file will likely be complete. In this case:
+The code will likely detect that all companies have already been collected and it might display a message: "No more symbols to process. All S&P 500 companies have been collected." Subsequently, you would not see the other two csv files being generated as the code would not enter the data collection phase in the first place.
+
+Thus, to force collection of new data for testing purposes, you have three options:
+
+-Delete the existing sp500_fundamentals_combined.csv file (in our view the simplest option)
+-Rename or move the existing sp500_fundamentals_combined.csv file
+-Modify the code to override the check (by editing the already_collected variable)
+
 #### How It Works
-1. **IP Rotation**: The Auto Tor IP Changer restarts the Tor Browser at regular intervals, providing the user with a new IP address each time
-2. **Proxy Configuration**: The R script connects through the Tor SOCKS proxy (127.0.0.1:9150)
-3. **API Requests**: With constantly rotating IPs, you can make more API requests without triggering rate limits
+1. IP Rotation: the Auto Tor IP changer restarts the Tor Browser at regular intervals, providing the user with a new IP address each time
+2. Proxy Configuration: the R script connects through the Tor SOCKS proxy (127.0.0.1:9150)
+3. API Requests: With constantly rotating IPs, we can make API requests without triggering rate limits; we are no longer constrained by our API address, but only by the (number of) API keys
 
 #### Troubleshooting
-- **Tor Browser not starting**: Make sure Tor Browser is properly installed
-- **Connection errors**: Verify that Tor is running properly and the SOCKS proxy is accessible
-- **Slow response times**: This is normal when using Tor; consider adjusting request intervals
+- Tor Browser not starting: Make sure Tor Browser is properly installed
+- Connection errors: Verify that Tor is running properly and the SOCKS proxy is accessible
+- Slow response times: This is normal when using Tor; one solution is to play around with the request intervals
 
 ### 2. Backup 1: batched requests approach
 
