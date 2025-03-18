@@ -261,7 +261,7 @@ data_file: Path to the output CSV file
 
 ## Project Information
 
-This is a school project created to demonstrate data acquisition, storage and integration techniques using web scraping, API calls, and interactive visualization.
+This is a school project created to demonstrate our skills in data acquisition and storage techniques using web scraping and API calls.
 
 ## License
 
