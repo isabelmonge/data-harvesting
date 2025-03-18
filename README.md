@@ -10,32 +10,88 @@ This project combines multiple data sources into a comprehensive data tool:
 2. **API Integration**: Fetches additional data through API calls
 3. **Shiny App**: Combines and visualizes all data in an interactive dashboard
 
-## Prerequisites
+## MarketBeat Earnings Call Transcript Scraper
 
-- **Docker Desktop:** [Download here](https://www.docker.com/products/docker-desktop/)
-- **R/RStudio:** Make sure R is installed and available from command line
-- **Install the following R packages:**
-  ```R
-  install.packages(c("RSelenium", "rvest", "xml2", "lubridate", "tidyquant"))
+This tool scrapes earnings call transcripts from MarketBeat.com for S&P 500 companies using R and a Selenium Firefox Docker container.
+
+---
+
+## Setup Instructions
+
+### Step 1: Set up Docker container
+
+1. **Install Docker Desktop** for your operating system:
+   - [Download Docker](https://www.docker.com/get-started)
+   
+2. **Start Docker and run the Selenium Firefox container:**
+   ```bash
+   docker run -d -p 4449:4444 --name selenium_firefox selenium/standalone-firefox:3.141.59
+   ```
+   **Note for Mac users with Apple Silicon (M1/M2/M3):** You may see a warning about platform mismatch (amd64 vs arm64). This is normal, and the container should still work properly through emulation.
+
+3. **Verify the container is running:**
+   ```bash
+   docker ps
+   ```
+   You should see a container named `selenium_firefox` in the list.
+
+---
+
+### Step 2: Set up R environment
+
+1. **Download and install R from CRAN:**
+   - **Windows users:** Select "Download R for Windows"
+   - **Mac users:** Select "Download R for macOS"
+     - For Apple Silicon Macs (M1/M2/M3), download the `arm64` version
+   - **Linux users:** Select "Download R for Linux" and follow the instructions for your distribution
+   
+2. **Install RStudio Desktop**: [Download RStudio](https://posit.co/download/rstudio-desktop/)
+
+3. **Open R or RStudio and install the required packages:**
+   ```r
+   install.packages(c("RSelenium", "rvest", "xml2", "lubridate", "tidyquant"))
    ```
 
-## Quick Start Guide
+---
 
-### Windows Users
-1. Install Docker Desktop and make sure it's running
-2. Clone this repository or download the ZIP
-3. Double-click `run_scraper.bat`
-4. Wait for the process to complete
-5. Find your data in the output folder
+### Step 3: Run the Scraper
 
-### Mac/Linux Users
-1. Install Docker Desktop and make sure it's running
-2. Clone this repository: `git clone https://github.com/YOUR-USERNAME/YOUR-REPO-NAME.git`
-3. Navigate to the repository folder: `cd YOUR-REPO-NAME`
-4. Make the script executable: `chmod +x run_scraper.sh`
-5. Run the script: `./run_scraper.sh`
-6. Wait for the process to complete
-7. Find your data in the output folder
+1. **Download the `scraper_script.R` file** from this repository.
+2. **Open R or RStudio**.
+3. **Set your working directory** to where you saved the script:
+   ```r
+   setwd("/path/to/folder/with/script")  # Replace with actual path
+   ```
+4. **Run the script:**
+   ```r
+   source("scraper_script.R")
+   ```
+
+The script will:
+- Connect to the Selenium Firefox container
+- Scrape earnings call transcripts for S&P 500 companies
+- Create a file called `all_transcripts.csv` with the results
+- Make results available in R via the `current_transcripts_df` variable
+
+---
+
+## Troubleshooting
+
+- **If Docker container stops:** Restart it with:
+  ```bash
+  docker restart selenium_firefox
+  ```
+- **If the script can't connect to Selenium:** Check that the container is running:
+  ```bash
+  docker ps
+  ```
+- **For network issues:** Ensure that port `4449` is available on your system.
+
+---
+
+This guide provides all necessary steps to run the MarketBeat Earnings Call Transcript Scraper effectively. If you encounter any issues, refer to the troubleshooting section or open an issue in the repository.
+
+
 
 ## How It Works
 
