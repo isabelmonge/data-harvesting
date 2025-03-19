@@ -220,7 +220,7 @@ Thus, to force collection of new data for testing purposes, you have three optio
 ### 2. Backup 1: batched requests approach
 
 #### Overview
-This approach spreads the requests over time to avoid hitting the request limits for the IP address. While it can be run once, we developed it in way such that it can efficiently run on a VPS to fully automate the data collection. Indeed, the high-level idea is that the first approach is used **once** to build the initial dataset and this approach here is then used to regularly update it. It does so by intelligently cycling through multiple Alpha Vantage API keys. Moreover, the script intentionally prioritizes companies by market cap and uses a smart refresh cycle to keep high-value data updated.
+This approach spreads the requests over time to avoid hitting the request limits for the IP address. While it can be run once, we developed it in way such that it can efficiently run on a VPS to fully automate the data collection. Indeed, the high-level idea is that the first approach is used **once** to build the initial dataset and this approach here is then used to regularly update it. Moreover, the script intentionally prioritizes companies by market cap and uses a smart refresh cycle to keep high-value data updated.
 
 
 #### Usage
