@@ -212,6 +212,7 @@ Thus, to force collection of new data for testing purposes, you have three optio
 3. API Requests: With constantly rotating IPs, we can make API requests without triggering rate limits; we are no longer constrained by our API address, but only by the (number of) API keys
 
 #### Troubleshooting
+- For the error "Failed to get IP through Tor", make sure that you click on "Always connect automatically" in the Tor Browser
 - Tor Browser not starting: Make sure Tor Browser is properly installed
 - Connection errors: Verify that Tor is running properly and the SOCKS proxy is accessible
 - Slow response times: This is normal when using Tor; one solution is to play around with the request intervals
