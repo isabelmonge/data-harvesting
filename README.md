@@ -103,6 +103,7 @@ The main approach is the most efficient one. But we also developed two alternati
 - **R/RStudio**: Version 4.0.0 or higher with required packages
 - **Tor Browser**: For the main approach - [Download here](https://www.torproject.org/download/) (note: this webpage may not work on institutional wifi networks with high security controls)
 - **Python 3.6+**: With the `requests` package installed
+- **This repo**: You would need to clone this repo
 - **.env file with API keys** API keys can be generated [here](https://www.alphavantage.co/support/#api-key)
 
 ### Basic Setup
@@ -139,38 +140,51 @@ The Auto Tor IP Rotation approach uses the Tor network to rotate IP addresses, a
 #### Installation
 
 ##### For macOS Users
-1. Clone this repository
-2. Navigate to the repository folder
-3. Run the installation script:
+1. Navigate to the repository folder
+2. Run the installation script in the terminal:
    ```bash
    chmod +x autotor/install_autotor_mac.sh
    ./autotor/install_autotor_mac.sh
    ```
-4. The script will install all necessary components
+3. The script will install all necessary components
 
 ##### For Linux Users
-1. Clone this repository
-2. Navigate to the repository folder
-3. Run the installation script:
+1. Navigate to the repository folder
+2. Run the installation script in the terminal:
    ```bash
    chmod +x autotor/install_autotor_linux.sh
    ./autotor/install_autotor_linux.sh
    ```
-4. Again, the script will install all necessary components
+3. Again, the script will install all necessary components
 
 #### Usage
-1. Start the Auto Tor IP Changer:
+The easiest way to test and use this approach is to open the `API_main_approach.Rmd`or the corresponding script `API_main_approach.R`. In the Markdown, you would run chunk by chunk or render the document and in the script you would run the entire code at once. Make sure that Auto Tor is set up and works properly before.
+
+If you prefer to work with the terminal, you could run the Rmd or the script via that. The commands are the following:
+
+1. Start the Auto Tor IP Changer in the terminal:
    ```bash
    aut
    ```
 2. When prompted:
    - Set the interval to 75 seconds
    - Press enter in order to choose "infinite" for the number of changes
+     
 3. Open another terminal window and run the Rmd (or the R script):
+   For Max/ Linux: 
    ```bash
    R -e "rmarkdown::render('API_main_approach.Rmd')"
    ```
    
+   ```bash
+   Rscript API_main_approach.R
+   ```
+   
+   For Windows:
+    ```bash
+   Rscript -e "rmarkdown::render('API_main_approach.Rmd')"
+   ```
+
    ```bash
    Rscript API_main_approach.R
    ```
@@ -207,13 +221,30 @@ This approach spreads the requests over time to avoid hitting the request limits
 
 
 #### Usage
-The easiest way to test and use this approach is to open the `API_backup_1.Rmd`or the correspondin script `API_backup_1.R`. In the Markdown, you would run chunk by chunk or render the document and in teh script you would run the entire code at once.
+The easiest way to test and use this approach is to open the `API_backup_1.Rmd`or the corresponding script `API_backup_1.R`. In the Markdown, you would run chunk by chunk or render the document and in the script you would run the entire code at once.
 
-If you prefer to work with the terminal, you could run the Rmd or the script via that. The commands are the following, but might need adjustment depending on your platform and terminal: 
+If you prefer to work with the terminal, you could run the Rmd or the script via that. The commands are the following:
 
+For Mac/ Linux
 Run the Rmd in the terminal:
 ``` bash 
 R -e "rmarkdown::render('API_backup_1.Rmd')"
+```
+
+Alternatively, run the script in the terminal:
+``` bash 
+Rscript API_backup_1.R
+```
+
+Run the script in the terminal with customized options:
+``` bash
+Rscript API_backup_1.R --auto --refresh=5 --combined=sp500_fundamentals_combined.csv
+```
+
+For Windows:
+Run the Rmd in the terminal:
+``` bash 
+Rscript -e "rmarkdown::render('API_backup_1.Rmd')"
 ```
 
 Alternatively, run the script in the terminal:
@@ -270,19 +301,15 @@ This approach uses manual VPN rotation with multiple API keys to efficiently col
 
 #### Prerequisites
 
-Any free VPN service (we used [PrivadoVPN](https://privadovpn.com/software/?device=macos))
+Any free VPN service would work (we used [PrivadoVPN](https://privadovpn.com/software/?device=macos)).
 Multiple Alpha Vantage API keys in a .env file
 
 #### Usage
+Again, you could run the `API_backup_2.Rmd` or the `API_backup_2.R` manually or use the terminal, depending on your preferences. 
+For this approach, we recommend the script. It would work as follows:
 
-The following is ideal for testing:
-
-``` bash
-R -e "rmarkdown::render('API_backup_2.Rmd')" 
-```
-
-Or, using the R script: 
-First run: Execute the entire script and then run the main function:
+R script: 
+First run: execute the entire script and then run the main function:
 ``` R # Load the script
 source("API_backup_2.R")
 ```
@@ -298,6 +325,18 @@ check_collection_progress()
 
 ``` R # To continue collection:
 main(start_index = X)  # Replace **X** with the "Next start index" value from previous step
+```
+
+If you preferred the terminal, the commands would be as follows:
+
+For Mac/ Linux:
+``` bash
+R -e "rmarkdown::render('API_backup_2.Rmd')" 
+```
+
+For Windows:
+``` bash
+Rscript -e "rmarkdown::render('API_backup_2.Rmd')"
 ```
 
 #### How It Works
