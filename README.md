@@ -218,6 +218,7 @@ Thus, to force collection of new data for testing purposes, you have three optio
 - Tor Browser not starting: Make sure Tor Browser is properly installed
 - Connection errors: Verify that Tor is running properly and the SOCKS proxy is accessible
 - Slow response times: This is normal when using Tor; one solution is to play around with the request intervals
+- Make sure that port 9150 is accessible
 
 ### 2. Backup 1: batched requests approach
 
@@ -351,8 +352,11 @@ After a set number of requests per IP (requests_per_ip) - which is set to 25 by 
 #### Configuration Options
 
 -sample_size: Number of companies to collect (default: 100)
+
 -requests_per_ip: Requests before VPN rotation (default: 25)
+
 -start_index: Index to resume collection from
+
 -data_file: Path to the output CSV file
 
 
@@ -362,12 +366,6 @@ After a set number of requests per IP (requests_per_ip) - which is set to 25 by 
 - **API rate limits**: Verify your approach configuration and adjust parameters if needed
 - **Connection timeouts**: Check your internet connection and retry
 - **Missing data**: Some symbols may not have complete data available; check logs for details
-
-#### Auto Tor Issues
-- **Cannot connect to Tor**: 
-  - Ensure Tor Browser is running
-  - Verify you clicked "Always connect automatically" when Tor Browser opened
-  - Check if port 9150 is accessible
 
 
 ## Project Information
