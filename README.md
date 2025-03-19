@@ -173,7 +173,7 @@ If you prefer to work with the terminal, you could run the Rmd or the script via
    - Press enter in order to choose "infinite" for the number of changes
      
 3. Open another terminal window and run the Rmd (or the R script):
-   For Mac/ Linux: 
+   ##### For Mac/ Linux: 
    ```bash
    R -e "rmarkdown::render('API_main_approach.Rmd')"
    ```
@@ -182,7 +182,7 @@ If you prefer to work with the terminal, you could run the Rmd or the script via
    Rscript API_main_approach.R
    ```
    
-   For Windows:
+   ##### For Windows:
     ```bash
    Rscript -e "rmarkdown::render('API_main_approach.Rmd')"
    ```
