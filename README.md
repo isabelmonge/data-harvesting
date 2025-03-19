@@ -7,8 +7,8 @@ This work is a combined approach using a Selenium-based web scraper and API data
 This project combines multiple data sources into a comprehensive data tool to track companies of the S&P 500:
 
 1. **Web Scraper**: Uses Docker, Selenium, and R to automatically collect earnings call transcripts of all companies listed in the S&P 500
-2. **API Integration**: Uses R to fetches stock market data and financial metrics of all S&P 500 companies through API calls
-3. **Shiny App**: Combines and visualizes all data in an interactive dashboard
+2. **API**: Uses R to fetch stock market data and financial metrics of all S&P 500 companies through API calls
+3. **Shiny App**: Combines and visualizes all the data in an interactive dashboard
 
 The Shiny App can be accessed [here](https://rstockmarketdashboard.shinyapps.io/Stock_market_dashboard/).
 
