@@ -118,8 +118,6 @@ You can add more keys if needed. For instance, if you used the main approach and
 Then, save the .env file in the root directory (this cloned repo). It should be literally called ".env".
 
 You could also do this in R:
-
-in R:
 ``` R # Create .env
 writeLines("ALPHA_VANTAGE_KEY_1=YOUR_KEY_1", ".env")
 ```
