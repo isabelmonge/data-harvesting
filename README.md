@@ -133,6 +133,8 @@ install.packages(c("httr", "jsonlite", "dotenv", "rvest"))
 The Auto Tor IP Rotation approach uses the Tor network to rotate IP addresses, allowing us to make multiple API requests without hitting request limits. This method resolves the issue that Alpha Vantage has a hard limit of 25 requests per day and **per IP address**. For reference, we used [this](https://github.com/FDX100/Auto_Tor_IP_changer
 ) following tutorial to install Auto Tor.
 
+If you installed Auto Tor and run it, your Terminal will look like this: 
+
 ![Auto Tor IP Changer Terminal](auto_tor_screenshot.png)
 
 #### Installation
