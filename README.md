@@ -201,7 +201,9 @@ The code will likely detect that all companies have already been collected and i
 Thus, to force collection of new data for testing purposes, you have three options:
 
 -Delete the existing sp500_fundamentals_combined.csv file (in our view the simplest option)
+
 -Rename or move the existing sp500_fundamentals_combined.csv file
+
 -Modify the code to override the check (by editing the already_collected variable)
 
 #### How It Works
