@@ -114,6 +114,8 @@ To this end, you would create a text file and paste your keys, following the str
 
 ALPHA_VANTAGE_KEY_1=YOUR_KEY_1
 
+Replace YOUR_KEY_1 with the actual key.
+
 You can add more keys if needed. For instance, if you used the main approach and wanted to download all the data in one go, 20 keys would be needed.
 Then, save the .env file in the root directory (this cloned repo). It should be literally called ".env".
 
