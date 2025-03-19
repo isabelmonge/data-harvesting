@@ -13,7 +13,7 @@ This project combines multiple data sources into a comprehensive data tool to tr
 The Shiny App can be accessed [here](https://rstockmarketdashboard.shinyapps.io/Stock_market_dashboard/).
 
 This repo contains both .R scripts and .Rmd markdown files. In the following, we will document the reproduction with the .Rmd files. However, you could 
-also use the .R scripts. Indeed, the .R scripts offer our extensive messaging system which can help with debugging and monitoring progress.
+also use the .R scripts.
 
 ## Web Scraper Instructions
 
