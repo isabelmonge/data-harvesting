@@ -101,7 +101,7 @@ The main approach is the most efficient one. But we also developed two alternati
 ### Prerequisites
 
 - **R/RStudio**: Version 4.0.0 or higher with required packages
-- **Tor Browser**: For the main approach - [Download here](https://www.torproject.org/download/) (note: this webpage may not work on institutional wifi networks with high security controls)
+- **Tor Browser**: Only for the main approach - [Download here](https://www.torproject.org/download/) (note: this webpage may not work on institutional wifi networks with high security controls)
 - **Python 3.6+**: With the `requests` package installed
 - **This repo**: You would need to clone this repo
 - **.env file with API keys** API keys can be generated [here](https://www.alphavantage.co/support/#api-key)
