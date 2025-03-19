@@ -124,7 +124,7 @@ in R:
 writeLines("ALPHA_VANTAGE_KEY_1=YOUR_KEY_1", ".env")
 ```
 
-in R: install the required R packages:
+Then, you also need to install the required packages. In R, run:
 ``` R # Install packages
 install.packages(c("httr", "jsonlite", "dotenv", "rvest"))
 ```
