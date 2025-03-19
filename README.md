@@ -109,16 +109,21 @@ The main approach is the most efficient one. But we also developed two alternati
 
 This setup is the same for all three approaches. In each of those, you would need an .env file with API keys in your root directory that follows a specific format and the following R packages installed.
 
-Create a .env file in the root directory with your Alpha Vantage API keys:
+To this end, you would create a text file and paste your keys, following the structure:
 ALPHA_VANTAGE_KEY_1=YOUR_KEY_1
 ALPHA_VANTAGE_KEY_2=YOUR_KEY_2
-Add more keys as needed
 
+You can add more keys if needed. For instance, if you used the main approach and wanted to download all the data in one go, 25 keys would be needed.
+Then, save the .env file in the root directory (this cloned repo). It should be literally called ".env".
+
+You could also do this in R:
+
+in R:
 ``` R # Create .env
 writeLines("ALPHA_VANTAGE_KEY_1=YOUR_KEY_1", ".env")
 ```
 
-Install required R packages:
+in R: install the required R packages:
 ``` R # Install packages
 install.packages(c("httr", "jsonlite", "dotenv", "rvest"))
 ```
@@ -202,16 +207,21 @@ This approach spreads the requests over time to avoid hitting the request limits
 
 
 #### Usage
-Run the API key rotation script:
+The easiest way to test and use this approach is to open the `API_backup_1.Rmd`or the correspondin script `API_backup_1.R`. In the Markdown, you would run chunk by chunk or render the document and in teh script you would run the entire code at once.
+
+If you prefer to work with the terminal, you could run the Rmd or the script via that. The commands are the following, but might need adjustment depending on your platform and terminal: 
+
+Run the Rmd in the terminal:
 ``` bash 
 R -e "rmarkdown::render('API_backup_1.Rmd')"
 ```
 
+Alternatively, run the script in the terminal:
 ``` bash 
 Rscript API_backup_1.R
 ```
 
-Or with options:
+Run the script in the terminal with customized options:
 ``` bash
 Rscript API_backup_1.R --auto --refresh=5 --combined=sp500_fundamentals_combined.csv
 ```
