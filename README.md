@@ -228,7 +228,7 @@ The easiest way to test and use this approach is to open the `API_backup_1.Rmd`o
 
 If you prefer to work with the terminal, you could run the Rmd or the script via that. The commands are the following:
 
-For Mac/ Linux
+##### For Mac/ Linux
 Run the Rmd in the terminal:
 ``` bash 
 R -e "rmarkdown::render('API_backup_1.Rmd')"
@@ -244,7 +244,7 @@ Run the script in the terminal with customized options:
 Rscript API_backup_1.R --auto --refresh=5 --combined=sp500_fundamentals_combined.csv
 ```
 
-For Windows:
+##### For Windows:
 Run the Rmd in the terminal:
 ``` bash 
 Rscript -e "rmarkdown::render('API_backup_1.Rmd')"
@@ -332,12 +332,12 @@ main(start_index = X)  # Replace **X** with the "Next start index" value from pr
 
 If you preferred the terminal, the commands would be as follows:
 
-For Mac/ Linux:
+##### For Mac/ Linux:
 ``` bash
 R -e "rmarkdown::render('API_backup_2.Rmd')" 
 ```
 
-For Windows:
+##### For Windows:
 ``` bash
 Rscript -e "rmarkdown::render('API_backup_2.Rmd')"
 ```
